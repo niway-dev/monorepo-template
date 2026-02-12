@@ -1,5 +1,5 @@
 {
-  "extends": "@interviews-tool/config/tsconfig.base.json",
+  "extends": "@monorepo-template/config/tsconfig.base.json",
   "compilerOptions": {
     "composite": false,
     "outDir": "dist",

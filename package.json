@@ -40,10 +40,13 @@
     "dev:native": "turbo run dev -F native",
     "dev:web": "turbo run dev -F web",
     "dev:server": "turbo run dev -F server",
-    "db:push": "turbo run db:push -F @monorepo-template/infra-db",
-    "db:studio": "turbo run db:studio -F @monorepo-template/infra-db",
-    "db:generate": "turbo run db:generate -F @monorepo-template/infra-db",
-    "db:migrate": "turbo run db:migrate -F @monorepo-template/infra-db"
+    "dev:fullstack-fn": "turbo run dev -F fullstack-fn-only",
+    "dev:fullstack-elysia": "turbo run dev -F fullstack-tanstack-elysia",
+    "db:command": "dotenvx run -f apps/<application>/.env -- turbo run db:command -F @monorepo-template/infra-db",
+    "db:push": "dotenvx run -f apps/server/.env -- turbo run db:push -F @monorepo-template/infra-db",
+    "db:studio": "dotenvx run -f apps/server/.env -- turbo run db:studio -F @monorepo-template/infra-db",
+    "db:generate": "dotenvx run -f apps/server/.env -- turbo run db:generate -F @monorepo-template/infra-db",
+    "db:migrate": "dotenvx run -f apps/server/.env -- turbo run db:migrate -F @monorepo-template/infra-db"
   },
   "dependencies": {
     "dotenv": "catalog:",
