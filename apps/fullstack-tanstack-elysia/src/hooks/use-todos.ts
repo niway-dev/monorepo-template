@@ -96,3 +96,14 @@ export const useDeleteTodo = () => {
     },
   });
 };
+
+export const useCreateTestTodo = () => {
+  return useMutation({
+    mutationFn: async (title: string) => {
+      // const { data, error } = await getTreaty().test.post({ title });
+      const { data, error } = await getTreaty().test.post({ title });
+      if (error) throw new Error("Failed to create todo");
+      return data;
+    },
+  });
+};

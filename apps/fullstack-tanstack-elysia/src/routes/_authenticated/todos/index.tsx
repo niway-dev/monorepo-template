@@ -22,6 +22,7 @@ import {
   useCreateTodo,
   useUpdateTodo,
   useDeleteTodo,
+  useCreateTestTodo,
 } from "@/hooks/use-todos";
 
 const DEFAULT_PAGE_SIZE = 5;
@@ -45,7 +46,8 @@ function TodosPage() {
     page,
     limit: pagination.pageSize,
   });
-  const createTodo = useCreateTodo();
+  // const createTodo = useCreateTodo();
+  const createTestTodo = useCreateTestTodo();
   const updateTodo = useUpdateTodo();
   const deleteTodo = useDeleteTodo();
   const [newTitle, setNewTitle] = useState("");
@@ -58,7 +60,7 @@ function TodosPage() {
     e.preventDefault();
     if (!newTitle.trim()) return;
 
-    createTodo.mutate(newTitle.trim(), {
+    createTestTodo.mutate(newTitle.trim(), {
       onSuccess: () => {
         setNewTitle("");
         toast.success("Todo created");
@@ -106,7 +108,7 @@ function TodosPage() {
               onChange={(e) => setNewTitle(e.target.value)}
               className="flex-1"
             />
-            <Button type="submit" disabled={createTodo.isPending || !newTitle.trim()}>
+            <Button type="submit" disabled={createTestTodo.isPending || !newTitle.trim()}>
               <Plus className="h-4 w-4 mr-2" />
               Add
             </Button>
