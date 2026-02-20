@@ -42,6 +42,8 @@
     "dev:server": "turbo run dev -F server",
     "dev:fullstack-fn": "turbo run dev -F fullstack-fn-only",
     "dev:fullstack-elysia": "turbo run dev -F fullstack-tanstack-elysia",
+    "customize": "bun scripts/customize.ts",
+    "rename": "bun scripts/rename.ts",
     "db:command": "dotenvx run -f apps/<application>/.env -- turbo run db:command -F @monorepo-template/infra-db",
     "db:push": "dotenvx run -f apps/server/.env -- turbo run db:push -F @monorepo-template/infra-db",
     "db:studio": "dotenvx run -f apps/server/.env -- turbo run db:studio -F @monorepo-template/infra-db",

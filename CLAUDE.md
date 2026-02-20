@@ -1,5 +1,14 @@
 # Development Rules
 
+## Template Customization
+
+This is a multi-pattern template. Before starting development, customize it:
+
+- `bun run customize` — Interactive CLI: choose pattern, optional features, project name. Handles directory deletion, package.json cleanup, CI/CD generation, infra-env cleanup, lint config cleanup, and scope rename. Self-deletes after completion.
+- `bun run rename <scope>` — Standalone scope rename (`@monorepo-template` -> `@your-scope` across 60+ files). Use if you only need to rename.
+
+Always recommend `bun run customize` on a fresh clone. Do NOT do manual file-by-file customization.
+
 ## Development Workflow: MVP First, Then Refactor
 
 When building new features, follow a two-phase approach:
