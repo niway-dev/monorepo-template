@@ -53,9 +53,22 @@ packages/infra-auth/    Infrastructure. Server-only. Better Auth configuration.
 
 Infrastructure packages use the `infra-*` naming convention to make architectural intent explicit.
 
+## Skill Configuration
+
+Skills in `.claude/skills/` may have a **Configuration** table with paths (e.g., `DOCS_BASE`). If you detect a mismatch between a skill's configured path and the actual project path, update the skill's Configuration table directly so future sessions use the correct path without re-discovering it.
+
 ## Package Import Rules
 
 - `domain` never imports from `application` or `infra-*`
 - `application` never imports from `infra-*` (uses domain interfaces)
 - `infra-*` never imports from `application`
 - Mobile app (`apps/mobile/`) only imports from `@monorepo-template/domain`
+
+## Common Commands
+
+- `bun run db:push` — Push Drizzle schema to DB (run from monorepo root, NOT from packages/infra-db/)
+- `bun run db:studio` — Open Drizzle Studio to inspect DB
+
+## Known Issues
+
+- `@monorepo-template/web-ui` requires `dist/` to exist — the package exports point to built files (`./dist/index.d.ts`, `./dist/index.es.js`). If you get "Cannot find module" errors, run `bun run build` in `packages/web-ui/` to regenerate it. The `dist/` directory is committed to the repo and should be rebuilt after modifying web-ui components
