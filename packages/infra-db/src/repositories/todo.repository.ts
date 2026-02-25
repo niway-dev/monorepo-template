@@ -1,4 +1,4 @@
-import { eq, and, count } from "drizzle-orm";
+import { eq, and, count, desc } from "drizzle-orm";
 import type { ITodoRepository } from "@monorepo-template/domain/repositories";
 import type { CreateTodo, UpdateTodo, TodoBase } from "@monorepo-template/domain/schemas";
 import { todoTable } from "../schema";
@@ -23,7 +23,7 @@ export class TodoRepository implements ITodoRepository {
       .select()
       .from(todoTable)
       .where(eq(todoTable.userId, userId))
-      .orderBy(todoTable.createdAt);
+      .orderBy(desc(todoTable.updatedAt));
 
     return results.map(mapTodoToDomain);
   }
@@ -38,7 +38,7 @@ export class TodoRepository implements ITodoRepository {
         .select()
         .from(todoTable)
         .where(eq(todoTable.userId, userId))
-        .orderBy(todoTable.createdAt)
+        .orderBy(desc(todoTable.updatedAt))
         .limit(limit)
         .offset(offset),
       this.db.select({ count: count() }).from(todoTable).where(eq(todoTable.userId, userId)),
@@ -55,6 +55,7 @@ export class TodoRepository implements ITodoRepository {
       .insert(todoTable)
       .values({
         title: data.title,
+        categoryId: data.categoryId ?? null,
         userId: data.userId,
       })
       .returning();

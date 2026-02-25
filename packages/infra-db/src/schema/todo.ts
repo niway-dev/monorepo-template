@@ -11,6 +11,7 @@ export const todoTable = createTable(
       .$defaultFn(() => crypto.randomUUID()),
     title: text("title").notNull(),
     completed: boolean("completed").default(false).notNull(),
+    categoryId: text("category_id"),
     userId: text("user_id")
       .notNull()
       .references(() => userTable.id, { onDelete: "cascade" }),

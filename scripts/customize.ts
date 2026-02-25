@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+/// <reference types="@types/bun" />
 /**
  * Interactive customization script for the monorepo template.
  *
@@ -10,7 +11,7 @@
  * Target: < 30 seconds for full customization.
  */
 
-import { readFileSync, writeFileSync, existsSync, rmSync, readdirSync } from "node:fs";
+import { existsSync, rmSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "..");
@@ -19,7 +20,7 @@ const ROOT = path.resolve(import.meta.dir, "..");
 // Types
 // ---------------------------------------------------------------------------
 
-type Pattern = "client-server" | "fullstack-fn-only" | "fullstack-tanstack-elysia";
+type Pattern = "client-server" | "fullstack-fn-only" | "fullstack-fn-and-convex";
 
 interface PatternConfig {
   label: string;
@@ -46,11 +47,20 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
   "client-server": {
     label: "Client-Server (apps/web + apps/server)",
     keep: ["apps/web", "apps/server"],
-    remove: ["apps/fullstack-fn-only", "apps/fullstack-tanstack-elysia"],
-    scriptsRemove: ["dev:fullstack-fn", "dev:fullstack-elysia"],
-    catalogRemove: ["@elysiajs/eden"],
-    envSchemasRemove: ["fullstackServerEnvSchema"],
-    envFilesToDelete: ["packages/infra-env/src/fullstack-server.ts"],
+    remove: ["apps/fullstack-fn-only", "apps/fullstack-fn-and-convex"],
+    scriptsRemove: [
+      "dev:fullstack-fn",
+      "dev:fullstack-convex",
+      "dev:convex",
+      "dev:convex:setup",
+      "generate:convex-jwt-keys",
+    ],
+    catalogRemove: ["convex", "@convex-dev/react-query"],
+    envSchemasRemove: ["fullstackServerEnvSchema", "fullstackConvexClientEnvSchema"],
+    envFilesToDelete: [
+      "packages/infra-env/src/fullstack-server.ts",
+      "packages/infra-env/src/fullstack-convex-client.ts",
+    ],
     dbEnvSource: "apps/server/.env",
     ciAppDir: "apps/web",
     ciNeedsBackend: true,
@@ -71,14 +81,33 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
   "fullstack-fn-only": {
     label: "Fullstack serverFn only (apps/fullstack-fn-only)",
     keep: ["apps/fullstack-fn-only"],
-    remove: ["apps/web", "apps/server", "apps/fullstack-tanstack-elysia"],
-    scriptsRemove: ["dev:web", "dev:server", "dev:fullstack-elysia"],
-    catalogRemove: ["elysia", "@elysiajs/eden", "@elysiajs/cors"],
-    envSchemasRemove: ["serverEnvSchema", "webServerEnvSchema", "webClientEnvSchema"],
+    remove: ["apps/web", "apps/server", "apps/fullstack-fn-and-convex"],
+    scriptsRemove: [
+      "dev:web",
+      "dev:server",
+      "dev:fullstack-convex",
+      "dev:convex",
+      "dev:convex:setup",
+      "generate:convex-jwt-keys",
+    ],
+    catalogRemove: [
+      "elysia",
+      "@elysiajs/eden",
+      "@elysiajs/cors",
+      "convex",
+      "@convex-dev/react-query",
+    ],
+    envSchemasRemove: [
+      "serverEnvSchema",
+      "webServerEnvSchema",
+      "webClientEnvSchema",
+      "fullstackConvexClientEnvSchema",
+    ],
     envFilesToDelete: [
       "packages/infra-env/src/server.ts",
       "packages/infra-env/src/web-server.ts",
       "packages/infra-env/src/web-client.ts",
+      "packages/infra-env/src/fullstack-convex-client.ts",
     ],
     dbEnvSource: "apps/fullstack-fn-only/.env",
     ciAppDir: "apps/fullstack-fn-only",
@@ -96,33 +125,41 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
     ],
     cursorRulesToDelete: [".cursor/rules/backend.mdc", ".cursor/rules/frontend.mdc"],
   },
-  "fullstack-tanstack-elysia": {
-    label: "Fullstack with Elysia (apps/fullstack-tanstack-elysia)",
-    keep: ["apps/fullstack-tanstack-elysia"],
+  "fullstack-fn-and-convex": {
+    label: "Fullstack serverFn + Convex (apps/fullstack-fn-and-convex)",
+    keep: ["apps/fullstack-fn-and-convex"],
     remove: ["apps/web", "apps/server", "apps/fullstack-fn-only"],
     scriptsRemove: ["dev:web", "dev:server", "dev:fullstack-fn"],
-    catalogRemove: ["@elysiajs/cors"],
+    catalogRemove: ["elysia", "@elysiajs/eden", "@elysiajs/cors"],
     envSchemasRemove: ["serverEnvSchema", "webServerEnvSchema", "webClientEnvSchema"],
     envFilesToDelete: [
       "packages/infra-env/src/server.ts",
       "packages/infra-env/src/web-server.ts",
       "packages/infra-env/src/web-client.ts",
     ],
-    dbEnvSource: "apps/fullstack-tanstack-elysia/.env",
-    ciAppDir: "apps/fullstack-tanstack-elysia",
+    dbEnvSource: "apps/fullstack-fn-and-convex/.env",
+    ciAppDir: "apps/fullstack-fn-and-convex",
     ciNeedsBackend: false,
     ciBuildEnv: {
       DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder",
       BETTER_AUTH_SECRET: "placeholder-secret-for-build-validation",
+      BETTER_AUTH_URL: "http://localhost:3004",
+      JWT_PRIVATE_JWK:
+        '{"kty":"RSA","n":"placeholder","e":"AQAB","kid":"placeholder","alg":"RS256","use":"sig"}',
+      JWT_KID: "placeholder-kid",
+      VITE_CONVEX_URL: "https://placeholder.convex.cloud",
     },
-    ciDeployVars: [],
+    ciDeployVars: ["VITE_CONVEX_URL"],
     ciDeploySecrets: [
       "CLOUDFLARE_API_TOKEN",
       "CLOUDFLARE_ACCOUNT_ID",
       "DATABASE_URL",
       "BETTER_AUTH_SECRET",
+      "BETTER_AUTH_URL",
+      "JWT_PRIVATE_JWK",
+      "JWT_KID",
     ],
-    cursorRulesToDelete: [".cursor/rules/backend.mdc"],
+    cursorRulesToDelete: [".cursor/rules/backend.mdc", ".cursor/rules/frontend.mdc"],
   },
 };
 
@@ -134,6 +171,10 @@ const ENV_SCHEMA_MAP: Record<string, { exportLine: string; file: string }> = {
   fullstackServerEnvSchema: {
     exportLine: 'export { fullstackServerEnvSchema } from "./fullstack-server";',
     file: "packages/infra-env/src/fullstack-server.ts",
+  },
+  fullstackConvexClientEnvSchema: {
+    exportLine: 'export { fullstackConvexClientEnvSchema } from "./fullstack-convex-client";',
+    file: "packages/infra-env/src/fullstack-convex-client.ts",
   },
   serverEnvSchema: {
     exportLine: 'export { serverEnvSchema } from "./server";',
@@ -191,12 +232,16 @@ function removeFile(rel: string): boolean {
   return false;
 }
 
-function readJson(rel: string): any {
-  return JSON.parse(readFileSync(abs(rel), "utf-8"));
+async function readJson(rel: string) {
+  return Bun.file(abs(rel)).json();
 }
 
-function writeJson(rel: string, data: any): void {
-  writeFileSync(abs(rel), JSON.stringify(data, null, 2) + "\n");
+async function writeJson(rel: string, data: unknown): Promise<void> {
+  await Bun.write(abs(rel), JSON.stringify(data, null, 2) + "\n");
+}
+
+async function writeText(rel: string, content: string): Promise<void> {
+  await Bun.write(abs(rel), content);
 }
 
 function choose(question: string, options: string[]): number {
@@ -407,19 +452,18 @@ async function main() {
   const patternIdx = choose("Which web architecture pattern?", [
     "Client-Server -- Separate frontend (apps/web) + API backend (apps/server)",
     "Fullstack serverFn only -- Single app using TanStack Start server functions",
-    "Fullstack with Elysia -- Single app with Elysia API embedded in TanStack Start",
+    "Fullstack serverFn + Convex -- TanStack Start with Convex real-time backend",
   ]);
-  const patternKeys: Pattern[] = [
-    "client-server",
-    "fullstack-fn-only",
-    "fullstack-tanstack-elysia",
-  ];
+  const patternKeys: Pattern[] = ["client-server", "fullstack-fn-only", "fullstack-fn-and-convex"];
   const pattern = patternKeys[patternIdx];
   const config = PATTERNS[pattern];
 
   const keepMobile = yesNo("\nKeep mobile app (Expo + React Native)?");
   const keepDocs = yesNo("Keep documentation site (Fumadocs + Next.js)?");
-  const keepConvex = yesNo("Keep Convex skills (for future integration)?");
+  const keepConvex =
+    pattern === "fullstack-fn-and-convex"
+      ? true
+      : yesNo("Keep Convex skills (for future integration)?");
 
   console.log('\nProject name (kebab-case, e.g. "my-app").');
   console.log("This replaces @monorepo-template scope everywhere.");
@@ -433,6 +477,7 @@ async function main() {
   const toDelete = [...config.remove];
   if (!keepMobile) toDelete.push("apps/mobile");
   if (!keepDocs) toDelete.push("apps/fumadocs");
+  if (!keepConvex) toDelete.push("packages/convex-api");
 
   const toKeep = [
     ...config.keep,
@@ -494,7 +539,7 @@ async function main() {
   // --- Step 4: Update root package.json ---
 
   console.log("\n[4/9] Updating root package.json...");
-  const pkg = readJson("package.json");
+  const pkg = await readJson("package.json");
 
   // Remove scripts for deleted apps
   const scriptsToRemove = [...config.scriptsRemove];
@@ -528,7 +573,7 @@ async function main() {
   delete pkg.scripts?.["customize"];
   delete pkg.scripts?.["rename"];
 
-  writeJson("package.json", pkg);
+  await writeJson("package.json", pkg);
 
   // --- Step 5: Clean up infra-env ---
 
@@ -547,16 +592,16 @@ async function main() {
       keepExports.push(info.exportLine);
     }
   }
-  writeFileSync(abs("packages/infra-env/src/index.ts"), keepExports.join("\n") + "\n");
+  await writeText("packages/infra-env/src/index.ts", keepExports.join("\n") + "\n");
   console.log("  Updated packages/infra-env/src/index.ts");
 
   // --- Step 6: Generate CI/CD workflows ---
 
   console.log("\n[6/9] Generating CI/CD workflows...");
-  writeFileSync(abs(".github/workflows/pr-validation.yml"), generatePrValidation(config, scope));
+  await writeText(".github/workflows/pr-validation.yml", generatePrValidation(config, scope));
   console.log("  Generated .github/workflows/pr-validation.yml");
-  writeFileSync(
-    abs(".github/workflows/deploy-production.yml"),
+  await writeText(
+    ".github/workflows/deploy-production.yml",
     generateDeployProduction(config, scope),
   );
   console.log("  Generated .github/workflows/deploy-production.yml");
@@ -569,7 +614,7 @@ async function main() {
     if (!existsSync(full)) continue;
 
     try {
-      const data = readJson(configFile);
+      const data = await readJson(configFile);
       if (data.ignorePatterns) {
         data.ignorePatterns = data.ignorePatterns.filter((p: string) => {
           // Remove app-specific routeTree path (glob patterns already catch it)
@@ -579,7 +624,7 @@ async function main() {
           if (!keepDocs && p === "**/.source/**") return false;
           return true;
         });
-        writeJson(configFile, data);
+        await writeJson(configFile, data);
         console.log(`  Cleaned ${configFile}`);
       }
     } catch {

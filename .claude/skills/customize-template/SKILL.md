@@ -34,14 +34,14 @@ bun run rename raiko  # @monorepo-template -> @raiko everywhere
 
 ### Apps
 
-| App                         | Path                              | Purpose                                               |
-| --------------------------- | --------------------------------- | ----------------------------------------------------- |
-| `web`                       | `apps/web/`                       | Frontend SPA (client in client-server pattern)        |
-| `server`                    | `apps/server/`                    | Backend API (server in client-server pattern)         |
-| `fullstack-fn-only`         | `apps/fullstack-fn-only/`         | Fullstack with TanStack serverFn only (no API server) |
-| `fullstack-tanstack-elysia` | `apps/fullstack-tanstack-elysia/` | Fullstack with Elysia API embedded in TanStack Start  |
-| `mobile`                    | `apps/mobile/`                    | Cross-platform mobile app (Expo 54)                   |
-| `fumadocs`                  | `apps/fumadocs/`                  | Documentation site (Next.js 16, Fumadocs)             |
+| App                       | Path                            | Purpose                                               |
+| ------------------------- | ------------------------------- | ----------------------------------------------------- |
+| `web`                     | `apps/web/`                     | Frontend SPA (client in client-server pattern)        |
+| `server`                  | `apps/server/`                  | Backend API (server in client-server pattern)         |
+| `fullstack-fn-only`       | `apps/fullstack-fn-only/`       | Fullstack with TanStack serverFn only (no API server) |
+| `fullstack-fn-and-convex` | `apps/fullstack-fn-and-convex/` | Fullstack with TanStack serverFn + Convex real-time   |
+| `mobile`                  | `apps/mobile/`                  | Cross-platform mobile app (Expo 54)                   |
+| `fumadocs`                | `apps/fumadocs/`                | Documentation site (Next.js 16, Fumadocs)             |
 
 ### Packages
 
@@ -57,23 +57,23 @@ bun run rename raiko  # @monorepo-template -> @raiko everywhere
 
 ### Architecture Patterns (Mutually Exclusive)
 
-| Pattern               | Keep                              | Remove                                                         |
-| --------------------- | --------------------------------- | -------------------------------------------------------------- |
-| Client-Server         | `apps/web/`, `apps/server/`       | `apps/fullstack-fn-only/`, `apps/fullstack-tanstack-elysia/`   |
-| Fullstack serverFn    | `apps/fullstack-fn-only/`         | `apps/web/`, `apps/server/`, `apps/fullstack-tanstack-elysia/` |
-| Fullstack with Elysia | `apps/fullstack-tanstack-elysia/` | `apps/web/`, `apps/server/`, `apps/fullstack-fn-only/`         |
+| Pattern            | Keep                            | Remove                                                       |
+| ------------------ | ------------------------------- | ------------------------------------------------------------ |
+| Client-Server      | `apps/web/`, `apps/server/`     | `apps/fullstack-fn-only/`, `apps/fullstack-fn-and-convex/`   |
+| Fullstack serverFn | `apps/fullstack-fn-only/`       | `apps/web/`, `apps/server/`, `apps/fullstack-fn-and-convex/` |
+| Fullstack + Convex | `apps/fullstack-fn-and-convex/` | `apps/web/`, `apps/server/`, `apps/fullstack-fn-only/`       |
 
 ### Pattern-Specific Cleanups (handled by `bun run customize`)
 
-| Item                       | Client-Server                          | Fullstack serverFn                                      | Fullstack Elysia                                        |
-| -------------------------- | -------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------- |
-| Scripts to remove          | dev:fullstack-fn, dev:fullstack-elysia | dev:web, dev:server, dev:fullstack-elysia               | dev:web, dev:server, dev:fullstack-fn                   |
-| Catalog entries to remove  | @elysiajs/eden                         | elysia, @elysiajs/eden, @elysiajs/cors                  | @elysiajs/cors                                          |
-| Env schemas to remove      | fullstackServerEnvSchema               | serverEnvSchema, webServerEnvSchema, webClientEnvSchema | serverEnvSchema, webServerEnvSchema, webClientEnvSchema |
-| db:\* env source           | apps/server/.env                       | apps/fullstack-fn-only/.env                             | apps/fullstack-tanstack-elysia/.env                     |
-| CI/CD backend step         | keep                                   | remove                                                  | remove                                                  |
-| .cursor/rules/backend.mdc  | keep                                   | delete                                                  | delete                                                  |
-| .cursor/rules/frontend.mdc | keep                                   | delete                                                  | keep                                                    |
+| Item                       | Client-Server                          | Fullstack serverFn                                                      | Fullstack + Convex                                      |
+| -------------------------- | -------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------- |
+| Scripts to remove          | dev:fullstack-fn, dev:fullstack-convex | dev:web, dev:server, dev:fullstack-convex                               | dev:web, dev:server, dev:fullstack-fn                   |
+| Catalog entries to remove  | convex, @convex-dev/react-query        | elysia, @elysiajs/eden, @elysiajs/cors, convex, @convex-dev/react-query | elysia, @elysiajs/eden, @elysiajs/cors                  |
+| Env schemas to remove      | fullstackServerEnvSchema               | serverEnvSchema, webServerEnvSchema, webClientEnvSchema                 | serverEnvSchema, webServerEnvSchema, webClientEnvSchema |
+| db:\* env source           | apps/server/.env                       | apps/fullstack-fn-only/.env                                             | apps/fullstack-fn-and-convex/.env                       |
+| CI/CD backend step         | keep                                   | remove                                                                  | remove                                                  |
+| .cursor/rules/backend.mdc  | keep                                   | delete                                                                  | delete                                                  |
+| .cursor/rules/frontend.mdc | keep                                   | delete                                                                  | delete                                                  |
 
 ### Optional Features
 
@@ -89,13 +89,13 @@ bun run rename raiko  # @monorepo-template -> @raiko everywhere
 
 The automated script handles structural changes but cannot rewrite prose content. After running `bun run customize`, check:
 
-| File                             | What to update                                                                          |
-| -------------------------------- | --------------------------------------------------------------------------------------- |
-| `CLAUDE.md`                      | Architecture examples referencing deleted apps                                          |
-| `.cursorrules`                   | Workspace structure, pattern-specific sections (Elysia routes, Eden Treaty, auth proxy) |
-| `.claude/architecture.md`        | References to deleted apps/server, apps/web                                             |
-| `.claude/ai-context.md`          | References to deleted app paths                                                         |
-| `.claude/todo-crud-reference.md` | References to deleted apps                                                              |
+| File                             | What to update                                 |
+| -------------------------------- | ---------------------------------------------- |
+| `CLAUDE.md`                      | Architecture examples referencing deleted apps |
+| `.cursorrules`                   | Workspace structure, pattern-specific sections |
+| `.claude/architecture.md`        | References to deleted apps/server, apps/web    |
+| `.claude/ai-context.md`          | References to deleted app paths                |
+| `.claude/todo-crud-reference.md` | References to deleted apps                     |
 
 Grep for stale references:
 

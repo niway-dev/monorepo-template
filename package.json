@@ -23,7 +23,9 @@
       "@vitejs/plugin-react": "5.1.2",
       "tsdown": "0.18.4",
       "vite": "7.3.0",
-      "typescript": "5.9.3"
+      "typescript": "5.9.3",
+      "convex": "^1.31.2",
+      "@convex-dev/react-query": "^0.1.0"
     }
   },
   "type": "module",
@@ -41,14 +43,17 @@
     "dev:web": "turbo run dev -F web",
     "dev:server": "turbo run dev -F server",
     "dev:fullstack-fn": "turbo run dev -F fullstack-fn-only",
-    "dev:fullstack-elysia": "turbo run dev -F fullstack-tanstack-elysia",
+    "dev:fullstack-convex": "turbo run dev -F fullstack-fn-and-convex",
+    "dev:convex": "turbo run dev -F @monorepo-template/convex-api",
+    "dev:convex:setup": "turbo run dev:setup -F @monorepo-template/convex-api",
     "customize": "bun scripts/customize.ts",
     "rename": "bun scripts/rename.ts",
     "db:command": "dotenvx run -f apps/<application>/.env -- turbo run db:command -F @monorepo-template/infra-db",
     "db:push": "dotenvx run -f apps/server/.env -- turbo run db:push -F @monorepo-template/infra-db",
     "db:studio": "dotenvx run -f apps/server/.env -- turbo run db:studio -F @monorepo-template/infra-db",
     "db:generate": "dotenvx run -f apps/server/.env -- turbo run db:generate -F @monorepo-template/infra-db",
-    "db:migrate": "dotenvx run -f apps/server/.env -- turbo run db:migrate -F @monorepo-template/infra-db"
+    "db:migrate": "dotenvx run -f apps/server/.env -- turbo run db:migrate -F @monorepo-template/infra-db",
+    "generate:convex-jwt-keys": "bun scripts/generate-convex-jwt-keys.ts"
   },
   "dependencies": {
     "dotenv": "catalog:",
@@ -58,6 +63,7 @@
     "@cloudflare/workers-types": "^4.20251213.0",
     "@types/bun": "catalog:",
     "husky": "^9.1.7",
+    "jose": "^6.1.3",
     "lint-staged": "^16.1.2",
     "oxfmt": "^0.19.0",
     "oxlint": "^1.34.0",
