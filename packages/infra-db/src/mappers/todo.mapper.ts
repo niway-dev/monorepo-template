@@ -8,6 +8,7 @@ export function mapTodoToDomain(row: TodoRow): TodoBase {
     id: row.id,
     title: row.title,
     completed: row.completed,
+    categoryId: row.categoryId ?? null,
     userId: row.userId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
