@@ -10,7 +10,7 @@ export default defineConfig({
     tailwindcss(),
     tsconfigPaths(),
     tanstackStart(),
-    cloudflare({ viteEnvironment: { name: "ssr" } }),
+    cloudflare({ viteEnvironment: { name: "ssr" }, inspectorPort: 9233 }),
     viteReact(),
   ],
   server: {
