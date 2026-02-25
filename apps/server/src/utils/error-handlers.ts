@@ -1,5 +1,5 @@
-import type { Result } from "@interviews-tool/domain/types";
-import { isFailure } from "@interviews-tool/domain/types";
+import type { Result } from "@monorepo-template/domain/types";
+import { isFailure } from "@monorepo-template/domain/types";
 import { InternalServerError } from "elysia";
 import { NotFoundError } from "./errors";
 
