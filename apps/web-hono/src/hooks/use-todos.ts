@@ -5,7 +5,7 @@ import {
   queryOptions,
   keepPreviousData,
 } from "@tanstack/react-query";
-import { clientTreaty } from "@/lib/client-treaty";
+import { orpc } from "@/lib/orpc-client";
 import { listTodos } from "@/server-functions/list-todos";
 
 interface TodosParams {
@@ -32,12 +32,8 @@ export const useTodos = (params: TodosParams) => {
 
 export const useTodo = (id: string) => {
   return useQuery({
+    ...orpc.todo.get.queryOptions({ input: { id } }),
     queryKey: todoKeys.detail(id),
-    queryFn: async () => {
-      const { data, error } = await clientTreaty.api.v1.todos({ id }).get();
-      if (error) throw new Error("Failed to fetch todo");
-      return data;
-    },
     enabled: !!id,
   });
 };
@@ -46,11 +42,7 @@ export const useCreateTodo = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (title: string) => {
-      const { data, error } = await clientTreaty.api.v1.todos.post({ title });
-      if (error) throw new Error("Failed to create todo");
-      return data;
-    },
+    ...orpc.todo.create.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: todoKeys.all });
     },
@@ -61,11 +53,7 @@ export const useUpdateTodo = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...data }: { id: string; title?: string; completed?: boolean }) => {
-      const { data: result, error } = await clientTreaty.api.v1.todos({ id }).put(data);
-      if (error) throw new Error("Failed to update todo");
-      return result;
-    },
+    ...orpc.todo.update.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: todoKeys.all });
     },
@@ -76,11 +64,7 @@ export const useDeleteTodo = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await clientTreaty.api.v1.todos({ id }).delete();
-      if (error) throw new Error("Failed to delete todo");
-      return data;
-    },
+    ...orpc.todo.delete.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: todoKeys.all });
     },

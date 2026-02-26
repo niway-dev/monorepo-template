@@ -58,15 +58,18 @@ function TodosPage() {
     e.preventDefault();
     if (!newTitle.trim()) return;
 
-    createTodo.mutate(newTitle.trim(), {
-      onSuccess: () => {
-        setNewTitle("");
-        toast.success("Todo created");
+    createTodo.mutate(
+      { title: newTitle.trim() },
+      {
+        onSuccess: () => {
+          setNewTitle("");
+          toast.success("Todo created");
+        },
+        onError: () => {
+          toast.error("Failed to create todo");
+        },
       },
-      onError: () => {
-        toast.error("Failed to create todo");
-      },
-    });
+    );
   };
 
   const handleToggle = (id: string, completed: boolean) => {
@@ -81,14 +84,17 @@ function TodosPage() {
   };
 
   const handleDelete = (id: string) => {
-    deleteTodo.mutate(id, {
-      onSuccess: () => {
-        toast.success("Todo deleted");
+    deleteTodo.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          toast.success("Todo deleted");
+        },
+        onError: () => {
+          toast.error("Failed to delete todo");
+        },
       },
-      onError: () => {
-        toast.error("Failed to delete todo");
-      },
-    });
+    );
   };
 
   return (

@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -9,6 +9,7 @@ import { Button, Input, Label } from "@monorepo-template/web-ui";
 
 export default function SignUpForm() {
   const navigate = useNavigate();
+  const router = useRouter();
 
   const form = useForm({
     defaultValues: {
@@ -24,10 +25,9 @@ export default function SignUpForm() {
           name: value.name,
         },
         {
-          onSuccess: () => {
-            navigate({
-              to: "/todos",
-            });
+          onSuccess: async () => {
+            await router.invalidate();
+            navigate({ to: "/todos" });
             toast.success("Sign up successful");
           },
           onError: (error) => {
