@@ -476,13 +476,13 @@ async function main() {
 
   const toDelete = [...config.remove];
   if (!keepMobile) toDelete.push("apps/mobile");
-  if (!keepDocs) toDelete.push("apps/fumadocs");
+  if (!keepDocs) toDelete.push("apps/documentation");
   if (!keepConvex) toDelete.push("packages/convex-api");
 
   const toKeep = [
     ...config.keep,
     ...(keepMobile ? ["apps/mobile"] : []),
-    ...(keepDocs ? ["apps/fumadocs"] : []),
+    ...(keepDocs ? ["apps/documentation"] : []),
   ];
 
   console.log("\n" + "=".repeat(50));
