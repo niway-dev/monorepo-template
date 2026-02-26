@@ -47,8 +47,6 @@
     "build:no-cache": "turbo run build --force",
     "check-types": "turbo run check-types",
     "dev:native": "turbo run dev -F native",
-    "dev:web": "turbo run dev -F web",
-    "dev:server": "turbo run dev -F server",
     "dev:fullstack-fn": "turbo run dev -F fullstack-fn-only",
     "dev:fullstack-convex": "turbo run dev -F fullstack-fn-and-convex",
     "dev:convex": "turbo run dev -F @monorepo-template/convex-api",
@@ -60,10 +58,10 @@
     "customize": "bun scripts/customize.ts",
     "rename": "bun scripts/rename.ts",
     "db:command": "dotenvx run -f apps/<application>/.env -- turbo run db:command -F @monorepo-template/infra-db",
-    "db:push": "dotenvx run -f apps/server/.env -- turbo run db:push -F @monorepo-template/infra-db",
-    "db:studio": "dotenvx run -f apps/server/.env -- turbo run db:studio -F @monorepo-template/infra-db",
-    "db:generate": "dotenvx run -f apps/server/.env -- turbo run db:generate -F @monorepo-template/infra-db",
-    "db:migrate": "dotenvx run -f apps/server/.env -- turbo run db:migrate -F @monorepo-template/infra-db",
+    "db:push": "dotenvx run -f apps/server-hono/.env -- turbo run db:push -F @monorepo-template/infra-db",
+    "db:studio": "dotenvx run -f apps/server-hono/.env -- turbo run db:studio -F @monorepo-template/infra-db",
+    "db:generate": "dotenvx run -f apps/server-hono/.env -- turbo run db:generate -F @monorepo-template/infra-db",
+    "db:migrate": "dotenvx run -f apps/server-hono/.env -- turbo run db:migrate -F @monorepo-template/infra-db",
     "generate:convex-jwt-keys": "bun scripts/generate-convex-jwt-keys.ts"
   },
   "dependencies": {
