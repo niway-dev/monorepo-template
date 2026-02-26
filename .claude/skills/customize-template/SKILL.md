@@ -41,7 +41,7 @@ bun run rename raiko  # @monorepo-template -> @raiko everywhere
 | `fullstack-fn-only`       | `apps/fullstack-fn-only/`       | Fullstack with TanStack serverFn only (no API server) |
 | `fullstack-fn-and-convex` | `apps/fullstack-fn-and-convex/` | Fullstack with TanStack serverFn + Convex real-time   |
 | `mobile`                  | `apps/mobile/`                  | Cross-platform mobile app (Expo 54)                   |
-| `fumadocs`                | `apps/fumadocs/`                | Documentation site (Next.js 16, Fumadocs)             |
+| `documentation`           | `apps/documentation/`           | Documentation site (Astro Starlight)                  |
 
 ### Packages
 
@@ -79,7 +79,7 @@ bun run rename raiko  # @monorepo-template -> @raiko everywhere
 
 **Mobile (`apps/mobile/`):** If removed, also remove `dev:native` script and `@better-auth/expo` from catalog.
 
-**Documentation (`apps/fumadocs/`):** If removed, also delete `.cursor/rules/documentation.mdc`.
+**Documentation (`apps/documentation/`):** If removed, also delete `.cursor/rules/documentation.mdc`.
 
 **Convex skills:** 13 pre-loaded `.claude/skills/convex-*` directories for future integration. Remove if not using Convex.
 

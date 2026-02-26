@@ -57,6 +57,33 @@ Infrastructure packages use the `infra-*` naming convention to make architectura
 
 Skills in `.claude/skills/` may have a **Configuration** table with paths (e.g., `DOCS_BASE`). If you detect a mismatch between a skill's configured path and the actual project path, update the skill's Configuration table directly so future sessions use the correct path without re-discovering it.
 
+## Client-Server Architecture (Web + Elysia API)
+
+The web app (TanStack Start) proxies all API requests through itself to the Elysia backend. This solves cookie-based auth on Cloudflare Workers where cross-origin cookies don't work.
+
+**How it works:**
+
+- Browser talks only to the web Worker domain (same-origin)
+- Web Worker proxies `/api/auth/*` and `/api/v1/*` to the Elysia API Worker
+- In production: Cloudflare Service Bindings (direct Worker-to-Worker, no public DNS)
+- In local dev: regular `fetch()` fallback (Service Bindings not available)
+- Set-Cookie headers are rewritten to strip `domain=` so cookies are assigned to the web domain
+
+**Key files:**
+
+- `apps/web/src/lib/api-fetch.ts` — Service Binding fetch wrapper with local dev fallback
+- `apps/web/src/routes/api/auth/$.ts` — Auth proxy (forwards x-forwarded-host/proto)
+- `apps/web/src/routes/api/v1/$.ts` — API proxy
+- `apps/web/wrangler.jsonc` — Service Binding declared in `services` array
+- `apps/web/src/lib/client-treaty.ts` — Eden Treaty uses `window.location.origin` (not server URL)
+
+**Important:**
+
+- Web app does NOT run Better Auth locally — it proxies to the backend's auth
+- `@monorepo-template/infra-auth` is NOT a dependency of the web app
+- CORS on the server is only for mobile (exp://, mobile://) — web is same-origin via proxy
+- After modifying wrangler.jsonc, run `wrangler types` to regenerate `worker-configuration.d.ts`
+
 ## Package Import Rules
 
 - `domain` never imports from `application` or `infra-*`

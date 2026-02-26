@@ -13,7 +13,7 @@ alwaysApply: true
 - Version format: `v1`, `v2`, `v3`, etc. (matches folder structure)
 
 ### Version Folders
-- Version-specific documentation goes in: `apps/fumadocs/content/docs/v{version}/`
+- Version-specific documentation goes in: `apps/documentation/src/content/docs/v{version}/`
 - Each version folder contains:
   - Feature documentation
   - Implementation summaries
@@ -117,7 +117,7 @@ tags:
 
 ### When Starting a New Feature
 1. **Ask for version**: "What version are we working on?"
-2. **Create feature doc**: `apps/fumadocs/content/docs/v{version}/feature-name.mdx`
+2. **Create feature doc**: `apps/documentation/src/content/docs/v{version}/feature-name.mdx`
 3. **Document as you go**: Update the doc as you implement
 4. **Include sections**:
    - Overview
