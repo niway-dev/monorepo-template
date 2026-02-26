@@ -65,4 +65,4 @@ bun run check-types
 
 ## Constants Pattern
 
-This package follows the type-safe constants pattern. See the [Constants Pattern documentation](../../apps/fumadocs/content/docs/constants-pattern.mdx) for details.
+This package follows the type-safe constants pattern. See the [Constants Pattern documentation](../../apps/documentation/src/content/docs/constants-pattern.mdx) for details.

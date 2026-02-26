@@ -199,10 +199,10 @@ When working with authentication:
 
 ### Documentation
 
-- [Authentication Overview](./apps/fumadocs/content/docs/authentication/overview.mdx) - Complete architecture guide
-- [Quick Reference](./apps/fumadocs/content/docs/authentication/quick-reference.mdx) - Quick reference
-- [Implementation](./apps/fumadocs/content/docs/authentication/implementation.mdx) - Implementation details
-- [Main Auth Docs](./apps/fumadocs/content/docs/authentication.mdx) - User-facing documentation
+- [Authentication Overview](./apps/documentation/src/content/docs/authentication/overview.mdx) - Complete architecture guide
+- [Quick Reference](./apps/documentation/src/content/docs/authentication/quick-reference.mdx) - Quick reference
+- [Implementation](./apps/documentation/src/content/docs/authentication/implementation.mdx) - Implementation details
+- [Main Auth Docs](./apps/documentation/src/content/docs/authentication.mdx) - User-facing documentation
 
 ---
 
@@ -435,7 +435,7 @@ export const entityKeys = {
 ```
 monorepo-template/
 ├── apps/
-│   ├── fumadocs/          # Documentation
+│   ├── documentation/     # Documentation (Astro Starlight)
 │   ├── server/            # Elysia backend
 │   └── web/               # TanStack Start frontend
 ├── packages/
@@ -472,7 +472,7 @@ import { Button, Card } from "@monorepo-template/web-ui";
 
 ### When to Document
 
-Document these changes in `apps/fumadocs/content/docs/`:
+Document these changes in `apps/documentation/src/content/docs/`:
 
 **Version-specific** (`v{version}/`):
 - New features or epics
@@ -537,7 +537,7 @@ If complexity grows:
 5. Create backend routes in `apps/server/src/routes/`
 6. Create frontend hooks in `apps/web/src/hooks/`
 7. Create UI components in `apps/web/src/components/`
-8. Document in `apps/fumadocs/content/docs/`
+8. Document in `apps/documentation/src/content/docs/`
 
 ### Building Packages
 
@@ -570,7 +570,7 @@ bun run dev
 2. **Derive schemas** - don't duplicate
 3. **Use response helpers** for consistent API responses
 4. **Export types** from schemas
-5. **Document significant changes** in fumadocs
+5. **Document significant changes** in documentation
 6. **Handle errors gracefully** with custom error classes
 7. **Use TypeScript strict mode**
 8. **Follow schema-based architecture** pattern

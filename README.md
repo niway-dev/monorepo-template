@@ -80,7 +80,7 @@ monorepo-template/
 │   ├── web/              # Frontend (TanStack Start on Cloudflare Workers)
 │   ├── server/           # Backend API (Elysia on Cloudflare Workers)
 │   ├── mobile/           # Mobile app (Expo / React Native)
-│   └── fumadocs/         # Documentation site (Next.js)
+│   └── documentation/    # Documentation site (Astro Starlight)
 │
 ├── packages/
 │   ├── domain/           # Pure business logic: schemas, types, repository interfaces

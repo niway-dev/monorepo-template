@@ -14,12 +14,12 @@ description: Template and format for feature documentation. Use when
 Update these values to match your project's documentation setup.
 All paths and templates below are derived from these values.
 
-| Variable         | Value                    | Description                                                       |
-| ---------------- | ------------------------ | ----------------------------------------------------------------- |
-| DOCS_BASE        | `apps/docs/content/docs` | Root path for documentation files                                 |
-| DOCS_EXT         | `.mdx`                   | File extension (`.mdx` for fumadocs, `.md` for plain)             |
-| INDEX_FILE       | `index.mdx`              | Index file name (`index.mdx` for fumadocs, `README.md` for plain) |
-| USES_FRONTMATTER | `true`                   | Whether files need YAML frontmatter (`title`, `description`)      |
+| Variable         | Value                                 | Description                                                        |
+| ---------------- | ------------------------------------- | ------------------------------------------------------------------ |
+| DOCS_BASE        | `apps/documentation/src/content/docs` | Root path for documentation files                                  |
+| DOCS_EXT         | `.mdx`                                | File extension (`.mdx` for Astro Starlight, `.md` for plain)       |
+| INDEX_FILE       | `index.mdx`                           | Index file name (`index.mdx` for Starlight, `README.md` for plain) |
+| USES_FRONTMATTER | `true`                                | Whether files need YAML frontmatter (`title`, `description`)       |
 
 ---
 

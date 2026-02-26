@@ -20,7 +20,11 @@ const ROOT = path.resolve(import.meta.dir, "..");
 // Types
 // ---------------------------------------------------------------------------
 
-type Pattern = "client-server" | "fullstack-fn-only" | "fullstack-fn-and-convex";
+type Pattern =
+  | "client-server-elysia"
+  | "client-server-hono"
+  | "fullstack-fn-only"
+  | "fullstack-fn-and-convex";
 
 interface PatternConfig {
   label: string;
@@ -33,6 +37,7 @@ interface PatternConfig {
   dbEnvSource: string;
   ciAppDir: string;
   ciNeedsBackend: boolean;
+  ciBackendDir: string | null;
   ciBuildEnv: Record<string, string>;
   ciDeployVars: string[];
   ciDeploySecrets: string[];
@@ -40,30 +45,103 @@ interface PatternConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Shared catalog groups
+// ---------------------------------------------------------------------------
+
+const ELYSIA_CATALOG = ["elysia", "@elysiajs/eden", "@elysiajs/cors"];
+const HONO_ORPC_CATALOG = [
+  "hono",
+  "@orpc/contract",
+  "@orpc/server",
+  "@orpc/openapi",
+  "@orpc/client",
+  "@orpc/openapi-client",
+  "@orpc/tanstack-query",
+];
+const CONVEX_CATALOG = ["convex", "@convex-dev/react-query"];
+
+// Scripts that no longer reference valid apps (legacy cleanup)
+const DEAD_SCRIPTS = ["dev:web", "dev:server"];
+
+// ---------------------------------------------------------------------------
 // Pattern Configurations
 // ---------------------------------------------------------------------------
 
 const PATTERNS: Record<Pattern, PatternConfig> = {
-  "client-server": {
-    label: "Client-Server (apps/web + apps/server)",
-    keep: ["apps/web", "apps/server"],
-    remove: ["apps/fullstack-fn-only", "apps/fullstack-fn-and-convex"],
+  "client-server-elysia": {
+    label: "Client-Server Elysia (apps/web-elysia + apps/server-elysia)",
+    keep: ["apps/web-elysia", "apps/server-elysia"],
+    remove: [
+      "apps/web-hono",
+      "apps/server-hono",
+      "apps/fullstack-fn-only",
+      "apps/fullstack-fn-and-convex",
+      "packages/infra-cloudflare",
+    ],
     scriptsRemove: [
+      ...DEAD_SCRIPTS,
+      "dev:web-hono",
+      "dev:server-hono",
       "dev:fullstack-fn",
       "dev:fullstack-convex",
       "dev:convex",
       "dev:convex:setup",
       "generate:convex-jwt-keys",
     ],
-    catalogRemove: ["convex", "@convex-dev/react-query"],
+    catalogRemove: [...HONO_ORPC_CATALOG, ...CONVEX_CATALOG],
     envSchemasRemove: ["fullstackServerEnvSchema", "fullstackConvexClientEnvSchema"],
     envFilesToDelete: [
       "packages/infra-env/src/fullstack-server.ts",
       "packages/infra-env/src/fullstack-convex-client.ts",
     ],
-    dbEnvSource: "apps/server/.env",
-    ciAppDir: "apps/web",
+    dbEnvSource: "apps/server-elysia/.env",
+    ciAppDir: "apps/web-elysia",
     ciNeedsBackend: true,
+    ciBackendDir: "apps/server-elysia",
+    ciBuildEnv: {
+      VITE_SERVER_URL: "https://placeholder.example.com",
+      DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder",
+      BETTER_AUTH_SECRET: "placeholder-secret-for-build-validation",
+    },
+    ciDeployVars: ["VITE_SERVER_URL"],
+    ciDeploySecrets: [
+      "CLOUDFLARE_API_TOKEN",
+      "CLOUDFLARE_ACCOUNT_ID",
+      "DATABASE_URL",
+      "BETTER_AUTH_SECRET",
+    ],
+    cursorRulesToDelete: [],
+  },
+  "client-server-hono": {
+    label: "Client-Server Hono + oRPC (apps/web-hono + apps/server-hono)",
+    keep: ["apps/web-hono", "apps/server-hono"],
+    remove: [
+      "apps/web-elysia",
+      "apps/server-elysia",
+      "apps/fullstack-fn-only",
+      "apps/fullstack-fn-and-convex",
+      "packages/infra-cloudflare",
+    ],
+    scriptsRemove: [
+      ...DEAD_SCRIPTS,
+      "dev:web-elysia",
+      "dev:server-elysia",
+      "dev:fullstack-fn",
+      "dev:fullstack-convex",
+      "dev:convex",
+      "dev:convex:setup",
+      "generate:convex-jwt-keys",
+    ],
+    catalogRemove: [...ELYSIA_CATALOG, ...CONVEX_CATALOG],
+    envSchemasRemove: ["fullstackServerEnvSchema", "fullstackConvexClientEnvSchema"],
+    envFilesToDelete: [
+      "packages/infra-env/src/fullstack-server.ts",
+      "packages/infra-env/src/fullstack-convex-client.ts",
+    ],
+    dbEnvSource: "apps/server-hono/.env",
+    ciAppDir: "apps/web-hono",
+    ciNeedsBackend: true,
+    ciBackendDir: "apps/server-hono",
     ciBuildEnv: {
       VITE_SERVER_URL: "https://placeholder.example.com",
       DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder",
@@ -81,22 +159,26 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
   "fullstack-fn-only": {
     label: "Fullstack serverFn only (apps/fullstack-fn-only)",
     keep: ["apps/fullstack-fn-only"],
-    remove: ["apps/web", "apps/server", "apps/fullstack-fn-and-convex"],
+    remove: [
+      "apps/web-elysia",
+      "apps/server-elysia",
+      "apps/web-hono",
+      "apps/server-hono",
+      "apps/fullstack-fn-and-convex",
+      "packages/infra-cloudflare",
+    ],
     scriptsRemove: [
-      "dev:web",
-      "dev:server",
+      ...DEAD_SCRIPTS,
+      "dev:web-elysia",
+      "dev:server-elysia",
+      "dev:web-hono",
+      "dev:server-hono",
       "dev:fullstack-convex",
       "dev:convex",
       "dev:convex:setup",
       "generate:convex-jwt-keys",
     ],
-    catalogRemove: [
-      "elysia",
-      "@elysiajs/eden",
-      "@elysiajs/cors",
-      "convex",
-      "@convex-dev/react-query",
-    ],
+    catalogRemove: [...ELYSIA_CATALOG, ...HONO_ORPC_CATALOG, ...CONVEX_CATALOG],
     envSchemasRemove: [
       "serverEnvSchema",
       "webServerEnvSchema",
@@ -112,6 +194,7 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
     dbEnvSource: "apps/fullstack-fn-only/.env",
     ciAppDir: "apps/fullstack-fn-only",
     ciNeedsBackend: false,
+    ciBackendDir: null,
     ciBuildEnv: {
       DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder",
       BETTER_AUTH_SECRET: "placeholder-secret-for-build-validation",
@@ -128,9 +211,23 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
   "fullstack-fn-and-convex": {
     label: "Fullstack serverFn + Convex (apps/fullstack-fn-and-convex)",
     keep: ["apps/fullstack-fn-and-convex"],
-    remove: ["apps/web", "apps/server", "apps/fullstack-fn-only"],
-    scriptsRemove: ["dev:web", "dev:server", "dev:fullstack-fn"],
-    catalogRemove: ["elysia", "@elysiajs/eden", "@elysiajs/cors"],
+    remove: [
+      "apps/web-elysia",
+      "apps/server-elysia",
+      "apps/web-hono",
+      "apps/server-hono",
+      "apps/fullstack-fn-only",
+      "packages/infra-cloudflare",
+    ],
+    scriptsRemove: [
+      ...DEAD_SCRIPTS,
+      "dev:web-elysia",
+      "dev:server-elysia",
+      "dev:web-hono",
+      "dev:server-hono",
+      "dev:fullstack-fn",
+    ],
+    catalogRemove: [...ELYSIA_CATALOG, ...HONO_ORPC_CATALOG],
     envSchemasRemove: ["serverEnvSchema", "webServerEnvSchema", "webClientEnvSchema"],
     envFilesToDelete: [
       "packages/infra-env/src/server.ts",
@@ -140,6 +237,7 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
     dbEnvSource: "apps/fullstack-fn-and-convex/.env",
     ciAppDir: "apps/fullstack-fn-and-convex",
     ciNeedsBackend: false,
+    ciBackendDir: null,
     ciBuildEnv: {
       DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder",
       BETTER_AUTH_SECRET: "placeholder-secret-for-build-validation",
@@ -290,10 +388,10 @@ function generatePrValidation(config: PatternConfig, scope: string): string {
     .join("\n");
 
   let backendStep = "";
-  if (config.ciNeedsBackend) {
+  if (config.ciNeedsBackend && config.ciBackendDir) {
     backendStep = `
       - name: Build backend
-        working-directory: apps/server
+        working-directory: ${config.ciBackendDir}
         run: bun run build
 `;
   }
@@ -367,14 +465,14 @@ function generateDeployProduction(config: PatternConfig, scope: string): string 
   const deployEnvLines = deployEnvEntries.join("\n");
 
   let backendStep = "";
-  if (config.ciNeedsBackend) {
+  if (config.ciNeedsBackend && config.ciBackendDir) {
     backendStep = `
       - name: Deploy Backend to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3.14.1
         with:
           apiToken: \${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: \${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/server
+          workingDirectory: ${config.ciBackendDir}
           secrets: |
             DATABASE_URL
             DATABASE_URL_DIRECT
@@ -450,16 +548,22 @@ async function main() {
   // --- Gather choices ---
 
   const patternIdx = choose("Which web architecture pattern?", [
-    "Client-Server -- Separate frontend (apps/web) + API backend (apps/server)",
+    "Client-Server Elysia -- Frontend (apps/web-elysia) + Elysia API (apps/server-elysia)",
+    "Client-Server Hono + oRPC -- Frontend (apps/web-hono) + Hono API (apps/server-hono)",
     "Fullstack serverFn only -- Single app using TanStack Start server functions",
     "Fullstack serverFn + Convex -- TanStack Start with Convex real-time backend",
   ]);
-  const patternKeys: Pattern[] = ["client-server", "fullstack-fn-only", "fullstack-fn-and-convex"];
+  const patternKeys: Pattern[] = [
+    "client-server-elysia",
+    "client-server-hono",
+    "fullstack-fn-only",
+    "fullstack-fn-and-convex",
+  ];
   const pattern = patternKeys[patternIdx];
   const config = PATTERNS[pattern];
 
   const keepMobile = yesNo("\nKeep mobile app (Expo + React Native)?");
-  const keepDocs = yesNo("Keep documentation site (Fumadocs + Next.js)?");
+  const keepDocs = yesNo("Keep documentation site (Astro Starlight)?");
   const keepConvex =
     pattern === "fullstack-fn-and-convex"
       ? true
@@ -476,13 +580,13 @@ async function main() {
 
   const toDelete = [...config.remove];
   if (!keepMobile) toDelete.push("apps/mobile");
-  if (!keepDocs) toDelete.push("apps/fumadocs");
+  if (!keepDocs) toDelete.push("apps/documentation");
   if (!keepConvex) toDelete.push("packages/convex-api");
 
   const toKeep = [
     ...config.keep,
     ...(keepMobile ? ["apps/mobile"] : []),
-    ...(keepDocs ? ["apps/fumadocs"] : []),
+    ...(keepDocs ? ["apps/documentation"] : []),
   ];
 
   console.log("\n" + "=".repeat(50));
@@ -609,6 +713,10 @@ async function main() {
   // --- Step 7: Clean lint configs ---
 
   console.log("\n[7/9] Cleaning up lint configs...");
+
+  // Collect kept app directories for routeTree filtering
+  const keptApps = new Set(toKeep.map((p) => p.split("/")[1]).filter(Boolean));
+
   for (const configFile of [".oxlintrc.json", ".oxfmtrc.json"]) {
     const full = abs(configFile);
     if (!existsSync(full)) continue;
@@ -617,8 +725,11 @@ async function main() {
       const data = await readJson(configFile);
       if (data.ignorePatterns) {
         data.ignorePatterns = data.ignorePatterns.filter((p: string) => {
-          // Remove app-specific routeTree path (glob patterns already catch it)
-          if (p === "apps/web/src/routeTree.gen.ts") return false;
+          // Remove app-specific routeTree entries for deleted apps
+          const routeTreeMatch = p.match(/^apps\/([^/]+)\/src\/routeTree\.gen\.ts$/);
+          if (routeTreeMatch) {
+            return keptApps.has(routeTreeMatch[1]);
+          }
           // Remove Next.js patterns if no docs
           if (!keepDocs && p === "**/.next/**") return false;
           if (!keepDocs && p === "**/.source/**") return false;

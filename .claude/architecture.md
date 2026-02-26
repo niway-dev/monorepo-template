@@ -16,7 +16,7 @@ monorepo-template/
 │   ├── server/          # Elysia API on Cloudflare Workers
 │   ├── web/             # TanStack Start (React 19) web app
 │   ├── mobile/          # Expo (React Native) mobile app
-│   └── fumadocs/        # Documentation site (Next.js)
+│   └── documentation/   # Documentation site (Astro Starlight)
 │
 ├── packages/
 │   ├── domain/          # Pure business logic: schemas, types, repository interfaces
