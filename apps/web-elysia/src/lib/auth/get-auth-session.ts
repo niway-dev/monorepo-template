@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { API_URL } from "@/lib/constants";
+import { apiFetch } from "@/lib/api-fetch";
 import type { AuthSession } from "./types";
 
 export const getAuthSession = createServerFn({ method: "GET" }).handler(
@@ -11,14 +12,14 @@ export const getAuthSession = createServerFn({ method: "GET" }).handler(
     if (!cookie) return null;
 
     try {
-      const response = await fetch(`${API_URL}/api/auth/get-session`, {
+      const response = await apiFetch(`${API_URL}/api/auth/get-session`, {
         headers: { cookie },
       });
 
       if (!response.ok) return null;
 
       const data = await response.json();
-      return data;
+      return data as AuthSession;
     } catch (error) {
       console.error("[auth] Failed to get session:", error);
       return null;

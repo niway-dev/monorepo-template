@@ -24,6 +24,23 @@ function HomePage() {
               A production-ready monorepo with DDD + Hexagonal Architecture, authentication,
               deployment configs, and a Todo CRUD example to get you started.
             </p>
+            <div className="flex flex-wrap gap-2 justify-center pt-2">
+              {[
+                "Elysia",
+                "Eden Treaty",
+                "TanStack Start",
+                "Better Auth",
+                "Drizzle",
+                "Cloudflare Workers",
+              ].map((tech) => (
+                <span
+                  key={tech}
+                  className="px-3 py-1 text-xs font-medium rounded-full bg-muted text-muted-foreground border"
+                >
+                  {tech}
+                </span>
+              ))}
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
@@ -92,8 +109,8 @@ function HomePage() {
                 </div>
                 <h3 className="text-xl font-semibold">Web + Mobile</h3>
                 <p className="text-muted-foreground">
-                  TanStack Start for web (SSR on Cloudflare Workers) and Expo for React Native
-                  mobile, sharing domain logic.
+                  TanStack Start for web with Elysia + Eden Treaty API (SSR on Cloudflare Workers)
+                  and Expo for React Native mobile, sharing domain logic.
                 </p>
               </CardContent>
             </Card>

@@ -11,4 +11,10 @@
     "directory": "dist/client",
     "binding": "ASSETS",
   },
+  "services": [
+    {
+      "binding": "API_SERVICE",
+      "service": "server-elysia-api",
+    },
+  ],
 }

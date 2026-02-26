@@ -9,14 +9,15 @@
     "dev": "vite dev",
     "deploy": "alchemy deploy",
     "destroy": "alchemy destroy",
-    "wrangler:dev": "wrangler dev --port 3003 --inspector-port 9232"
+    "wrangler:dev": "wrangler dev --port 3003 --inspector-port 9232",
+    "wrangler:types": "wrangler types"
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",
     "@elysiajs/eden": "catalog:",
     "@monorepo-template/application": "workspace:*",
     "@monorepo-template/domain": "workspace:*",
-    "@monorepo-template/infra-auth": "workspace:*",
+    "@monorepo-template/infra-cloudflare": "workspace:*",
     "@monorepo-template/infra-db": "workspace:*",
     "@monorepo-template/infra-env": "workspace:*",
     "@tanstack/react-form": "^1.23.5",
