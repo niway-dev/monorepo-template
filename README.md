@@ -2,6 +2,26 @@
 
 A production-ready monorepo template with DDD + Hexagonal Architecture, authentication, deployment configs, and a Todo CRUD example. Built with TypeScript, Bun, and Turborepo.
 
+## Knowledge Documentation
+
+Reusable, product-agnostic knowledge (architecture, stacks, error handling, monorepos,
+packages, conventions) lives in a central hub instead of being copy-pasted into every
+project: **[general-knowledge](https://github.com/csdev19/general-knowledge)**.
+
+Start from the **stack recipe** that matches this project — each one is a linked reading
+list into the flat knowledge docs plus the assembly notes for that stack:
+
+| Stack                     | Recipe                                                                                                                 |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Hono + oRPC** (default) | [stacks/fullstack-hono-orpc](https://github.com/csdev19/general-knowledge/blob/main/stacks/fullstack-hono-orpc.md)     |
+| **Elysia + Eden**         | [stacks/fullstack-elysia-eden](https://github.com/csdev19/general-knowledge/blob/main/stacks/fullstack-elysia-eden.md) |
+| **Convex** (realtime)     | [stacks/fullstack-convex](https://github.com/csdev19/general-knowledge/blob/main/stacks/fullstack-convex.md)           |
+| **Mobile (Expo)**         | [stacks/mobile-expo](https://github.com/csdev19/general-knowledge/blob/main/stacks/mobile-expo.md)                     |
+| **Desktop (Electron)**    | [stacks/desktop-electron](https://github.com/csdev19/general-knowledge/blob/main/stacks/desktop-electron.md)           |
+
+Deferred work and ideas for this project go in [`backlog/`](./backlog/) — see the
+[backlog pattern](https://github.com/csdev19/general-knowledge/blob/main/conventions/backlog-pattern.md).
+
 ## Getting Started
 
 ### Prerequisites
