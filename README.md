@@ -19,8 +19,9 @@ list into the flat knowledge docs plus the assembly notes for that stack:
 | **Mobile (Expo)**         | [stacks/mobile-expo](https://github.com/csdev19/general-knowledge/blob/main/stacks/mobile-expo.md)                     |
 | **Desktop (Electron)**    | [stacks/desktop-electron](https://github.com/csdev19/general-knowledge/blob/main/stacks/desktop-electron.md)           |
 
-Deferred work and ideas for this project go in [`backlog/`](./backlog/) — see the
-[backlog pattern](https://github.com/csdev19/general-knowledge/blob/main/conventions/backlog-pattern.md).
+Deferred work and ideas for this project go in the **Backlog** section of the docs site
+([`apps/documentation/src/content/docs/backlog/`](./apps/documentation/src/content/docs/backlog/index.mdx))
+— see the [backlog pattern](https://github.com/csdev19/general-knowledge/blob/main/conventions/backlog-pattern.md).
 
 ## Getting Started
 
