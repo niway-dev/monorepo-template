@@ -7,7 +7,7 @@
 | App/Package                       | Method                                      | Source File                                | When                                   |
 | --------------------------------- | ------------------------------------------- | ------------------------------------------ | -------------------------------------- |
 | **Server**                        | `import { env } from "cloudflare:workers"`  | `.dev.vars` (dev), wrangler secrets (prod) | Runtime                                |
-| **Web**                           | Vite `import.meta.env` + Alchemy bindings   | `.env`                                     | Build-time (client) / Runtime (server) |
+| **Web**                           | Vite `import.meta.env` + Wrangler vars      | `.env`                                     | Build-time (client) / Runtime (server) |
 | **Mobile**                        | Expo `EXPO_PUBLIC_` prefix + Zod validation | `.env`                                     | Build-time                             |
 | **Infra-DB** (drizzle migrations) | `dotenv` loading `../../.env` (root)        | Root `.env`                                | Migration-time                         |
 

@@ -28,6 +28,7 @@
   "devDependencies": {
     "@monorepo-template/config": "workspace:*",
     "tsdown": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "wrangler": "catalog:"
   }
 }

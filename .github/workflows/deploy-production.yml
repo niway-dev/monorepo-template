@@ -28,7 +28,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Install Wrangler
-        run: bun add -g wrangler
+        run: bun add -g wrangler@4.110.0
 
       - name: Build packages only
         run: bun run build --filter='@monorepo-template/*'

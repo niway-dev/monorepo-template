@@ -91,6 +91,13 @@ The web app (TanStack Start) proxies all API requests through itself to the Elys
 - `infra-*` never imports from `application`
 - Mobile app (`apps/mobile/`) only imports from `@monorepo-template/domain`
 
+## Environment Variables & Wrangler
+
+- **ALWAYS use `.env` (and `.dev.vars` for local Worker secrets). NEVER declare a `vars` / `[vars]` / `[env.*]` block in `wrangler.jsonc`.** Recent Wrangler versions auto-load `.env` at dev/build time, so a `vars` block in `wrangler.jsonc` duplicates config and drifts from `.env` (the single source of truth). Production values are injected as Wrangler secrets via `cloudflare/wrangler-action` in CI, not committed anywhere.
+- **Deploy with Wrangler, not Alchemy.** The apps ship through `wrangler deploy` (CI uses `cloudflare/wrangler-action`). Do not reintroduce `alchemy` / `alchemy.run.ts` — it was removed as a redundant parallel deploy path.
+- **Wrangler is pinned in the root catalog** (`package.json` → `workspaces.catalog.wrangler`). Bump it there (and mirror the version in `.github/workflows/deploy-production.yml`'s `bun add -g wrangler@<version>`) so every app resolves the same version. Reference it per-app as `"wrangler": "catalog:"`.
+- **Keep `compatibility_date` current and identical across all `wrangler.jsonc` files.** When bumping, set today's date and review the Cloudflare compatibility-flags changelog. After editing `wrangler.jsonc`, run `wrangler types` to regenerate `worker-configuration.d.ts`.
+
 ## Common Commands
 
 - `bun run db:push` — Push Drizzle schema to DB (run from monorepo root, NOT from packages/infra-db/)
