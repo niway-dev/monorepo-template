@@ -32,6 +32,7 @@
     "@monorepo-template/config": "workspace:*",
     "@types/bun": "catalog:",
     "tsdown": "^0.16.5",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "catalog:"
   }
 }
