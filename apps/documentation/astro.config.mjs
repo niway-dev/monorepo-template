@@ -62,6 +62,10 @@ export default defineConfig({
           ],
         },
         {
+          label: "Backlog",
+          autogenerate: { directory: "backlog" },
+        },
+        {
           label: "Changelog",
           items: [{ slug: "changelog" }],
         },
