@@ -126,7 +126,7 @@ Application imports ONLY from domain. The caller (server) wires the concrete rep
 | `config/base-config.ts` | BetterAuthOptions: Drizzle adapter, scrypt password hashing, cookie config |
 | `config/functions.ts`   | Custom session plugin                                                      |
 
-### 4.5 `apps/server/` -- API (Elysia + Cloudflare Workers)
+### 4.5 `apps/server-elysia/` -- API (Elysia + Cloudflare Workers)
 
 | Folder     | Contents                                        |
 | ---------- | ----------------------------------------------- |
@@ -143,7 +143,7 @@ const repository = new TodoRepository(db);
 const todos = await repository.findAllByUserId(user.id);
 ```
 
-### 4.6 `apps/web/` -- Web App (TanStack Start)
+### 4.6 `apps/web-elysia/` -- Web App (TanStack Start)
 
 | Folder        | Contents                                        |
 | ------------- | ----------------------------------------------- |
@@ -238,19 +238,19 @@ Response
 
 ## 9. Key Files Reference
 
-| Purpose                   | Path                                                    |
-| ------------------------- | ------------------------------------------------------- |
-| Todo Zod schemas          | `packages/domain/src/schemas/todo.ts`                   |
-| Todo repository interface | `packages/domain/src/repositories/todo.repository.ts`   |
-| Result type               | `packages/domain/src/types/result.ts`                   |
-| Create todo use case      | `packages/application/src/todos/create-todo.ts`         |
-| Todo DB table definition  | `packages/infra-db/src/schema/todo.ts`                  |
-| Auth DB tables            | `packages/infra-db/src/schema/auth.ts`                  |
-| Todo repository impl      | `packages/infra-db/src/repositories/todo.repository.ts` |
-| Todo data mapper          | `packages/infra-db/src/mappers/todo.mapper.ts`          |
-| Auth base config          | `packages/infra-auth/src/config/base-config.ts`         |
-| Server auth instance      | `apps/server/src/lib/auth.ts`                           |
-| Server todo routes        | `apps/server/src/routes/todos.ts`                       |
-| Web todo page             | `apps/web/src/routes/_authenticated/todos/index.tsx`    |
-| Mobile auth client        | `apps/mobile/lib/auth-client.ts`                        |
-| Mobile API client         | `apps/mobile/lib/api-client.ts`                         |
+| Purpose                   | Path                                                        |
+| ------------------------- | ----------------------------------------------------------- |
+| Todo Zod schemas          | `packages/domain/src/schemas/todo.ts`                       |
+| Todo repository interface | `packages/domain/src/repositories/todo.repository.ts`       |
+| Result type               | `packages/domain/src/types/result.ts`                       |
+| Create todo use case      | `packages/application/src/todos/create-todo.ts`             |
+| Todo DB table definition  | `packages/infra-db/src/schema/todo.ts`                      |
+| Auth DB tables            | `packages/infra-db/src/schema/auth.ts`                      |
+| Todo repository impl      | `packages/infra-db/src/repositories/todo.repository.ts`     |
+| Todo data mapper          | `packages/infra-db/src/mappers/todo.mapper.ts`              |
+| Auth base config          | `packages/infra-auth/src/config/base-config.ts`             |
+| Server auth instance      | `apps/server-elysia/src/lib/auth.ts`                        |
+| Server todo routes        | `apps/server-elysia/src/routes/todos.ts`                    |
+| Web todo page             | `apps/web-elysia/src/routes/_authenticated/todos/index.tsx` |
+| Mobile auth client        | `apps/mobile/lib/auth-client.ts`                            |
+| Mobile API client         | `apps/mobile/lib/api-client.ts`                             |

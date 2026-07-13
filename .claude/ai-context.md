@@ -29,7 +29,7 @@ Browser -> /api/auth/* (proxy) -> Backend -> Database
 ### File Locations
 
 ```
-apps/web/src/
+apps/web-elysia/src/
 ├── routes/
 │   ├── __root.tsx                    # Session validation in beforeLoad
 │   ├── _authenticated.tsx            # Protected route layout
@@ -37,8 +37,8 @@ apps/web/src/
 │
 └── lib/auth/
     ├── auth-client.ts                # Client-side auth (uses proxy)
-    ├── auth-server.ts                # Server-side auth instance
-    └── functions.ts                  # getAuthSession() server function
+    ├── get-auth-session.ts           # getAuthSession() server fn — proxies to /api/auth/get-session
+    └── types.ts                      # AuthSession type
 ```
 
 ---
@@ -161,5 +161,5 @@ Create under `_authenticated/` directory. Session guaranteed via parent `beforeL
 ### Auth Config Locations
 
 1. Backend config: `packages/infra-auth/src/config/base-config.ts`
-2. Client config: `apps/web/src/lib/auth/auth-client.ts`
-3. Server instance: `apps/web/src/lib/auth/auth-server.ts`
+2. Client config: `apps/web-elysia/src/lib/auth/auth-client.ts`
+3. Web session (proxied): `apps/web-elysia/src/lib/auth/get-auth-session.ts` — the client-server web app has no local auth instance; it proxies to the backend's `/api/auth/get-session`. (The real Better Auth instance lives in the backend app, `apps/server-elysia/src/lib/auth.ts`.)
