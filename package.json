@@ -46,6 +46,7 @@
     "build": "turbo run build",
     "build:no-cache": "turbo run build --force",
     "check-types": "turbo run check-types",
+    "test": "turbo run test",
     "dev:native": "turbo run dev -F mobile",
     "dev:fullstack-fn": "turbo run dev -F fullstack-fn-only",
     "dev:fullstack-convex": "turbo run dev -F fullstack-fn-and-convex",
