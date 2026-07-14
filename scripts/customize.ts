@@ -41,7 +41,6 @@ interface PatternConfig {
   ciBuildEnv: Record<string, string>;
   ciDeployVars: string[];
   ciDeploySecrets: string[];
-  cursorRulesToDelete: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -109,7 +108,6 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       "DATABASE_URL",
       "BETTER_AUTH_SECRET",
     ],
-    cursorRulesToDelete: [],
   },
   "client-server-hono": {
     label: "Client-Server Hono + oRPC (apps/web-hono + apps/server-hono)",
@@ -152,7 +150,6 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       "DATABASE_URL",
       "BETTER_AUTH_SECRET",
     ],
-    cursorRulesToDelete: [],
   },
   "fullstack-fn-only": {
     label: "Fullstack serverFn only (apps/fullstack-fn-only)",
@@ -204,7 +201,6 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       "DATABASE_URL",
       "BETTER_AUTH_SECRET",
     ],
-    cursorRulesToDelete: [".cursor/rules/backend.mdc", ".cursor/rules/frontend.mdc"],
   },
   "fullstack-fn-and-convex": {
     label: "Fullstack serverFn + Convex (apps/fullstack-fn-and-convex)",
@@ -255,7 +251,6 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       "JWT_PRIVATE_JWK",
       "JWT_KID",
     ],
-    cursorRulesToDelete: [".cursor/rules/backend.mdc", ".cursor/rules/frontend.mdc"],
   },
 };
 
@@ -285,22 +280,6 @@ const ENV_SCHEMA_MAP: Record<string, { exportLine: string; file: string }> = {
     file: "packages/infra-env/src/web-server.ts",
   },
 };
-
-const CONVEX_SKILLS = [
-  ".claude/skills/convex",
-  ".claude/skills/convex-agents",
-  ".claude/skills/convex-best-practices",
-  ".claude/skills/convex-component-authoring",
-  ".claude/skills/convex-cron-jobs",
-  ".claude/skills/convex-file-storage",
-  ".claude/skills/convex-functions",
-  ".claude/skills/convex-http-actions",
-  ".claude/skills/convex-migrations",
-  ".claude/skills/convex-realtime",
-  ".claude/skills/convex-schema-validator",
-  ".claude/skills/convex-security-audit",
-  ".claude/skills/convex-security-check",
-];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -338,6 +317,60 @@ async function writeJson(rel: string, data: unknown): Promise<void> {
 
 async function writeText(rel: string, content: string): Promise<void> {
   await Bun.write(abs(rel), content);
+}
+
+/** Replace the multi-pattern template README with a minimal one for the chosen pattern. */
+async function writeReadme(
+  config: PatternConfig,
+  keepMobile: boolean,
+  keepDocs: boolean,
+  name: string,
+): Promise<void> {
+  const apps = [
+    ...config.keep,
+    ...(keepMobile ? ["apps/mobile"] : []),
+    ...(keepDocs ? ["apps/documentation"] : []),
+  ]
+    .map((p) => `- \`${p}\``)
+    .join("\n");
+
+  await writeText(
+    "README.md",
+    `# ${name}
+
+A ${config.label} monorepo, scaffolded from monorepo-template — DDD + Hexagonal
+Architecture, TypeScript, Bun, and Turborepo.
+
+## Getting Started
+
+\`\`\`bash
+bun install
+# copy each app's .env.example -> .env (or .dev.vars) and fill it in
+bun run db:push
+bun run dev
+\`\`\`
+
+## Apps
+
+${apps}
+
+Shared packages live in \`packages/\` (domain, application, infra-*, web-ui, config).
+
+## Scripts
+
+- \`bun run dev\` — start the app(s) in development
+- \`bun run build\` — build for production
+- \`bun run check-types\` — typecheck · \`bun run test\` — tests
+- \`bun run lint\` / \`bun run format\` — lint / format
+- \`bun run db:push\` / \`db:studio\` / \`db:generate\` / \`db:migrate\` — database
+
+## Architecture
+
+DDD + Hexagonal, layer-first packages. The dependency rule is strict:
+\`domain <- application <- infra-*\`, and only apps wire them together. See
+\`CLAUDE.md\` and \`.claude/architecture.md\`.
+`,
+  );
 }
 
 function choose(question: string, options: string[]): number {
@@ -609,43 +642,27 @@ async function main() {
 
   // --- Step 1: Delete app directories ---
 
-  console.log("\n[1/9] Deleting app directories...");
+  console.log("\n[1/8] Deleting app directories...");
   for (const dir of toDelete) {
     if (removeDir(dir)) console.log(`  Deleted ${dir}/`);
   }
 
-  // --- Step 2: Delete Convex skills ---
+  // --- Step 2: Remove Convex-only files ---
 
   if (!keepConvex) {
-    console.log("\n[2/9] Removing Convex skills...");
-    let count = 0;
-    for (const dir of CONVEX_SKILLS) {
-      if (removeDir(dir)) count++;
-    }
+    console.log("\n[2/8] Removing Convex-only files...");
     // The Convex JWT key generator is only meaningful for fullstack-fn-and-convex.
     // Its package.json script is stripped elsewhere; delete the orphaned file too.
     if (removeFile("scripts/generate-convex-jwt-keys.ts")) {
       console.log("  Removed scripts/generate-convex-jwt-keys.ts");
     }
-    console.log(`  Removed ${count} Convex skill directories`);
   } else {
-    console.log("\n[2/9] Keeping Convex skills.");
+    console.log("\n[2/8] Keeping Convex files.");
   }
 
-  // --- Step 3: Clean .cursor rules ---
+  // --- Step 3: Update root package.json ---
 
-  console.log("\n[3/9] Cleaning up .cursor rules...");
-  for (const file of config.cursorRulesToDelete) {
-    if (removeFile(file)) console.log(`  Deleted ${file}`);
-  }
-  if (!keepDocs) {
-    if (removeFile(".cursor/rules/documentation.mdc"))
-      console.log("  Deleted .cursor/rules/documentation.mdc");
-  }
-
-  // --- Step 4: Update root package.json ---
-
-  console.log("\n[4/9] Updating root package.json...");
+  console.log("\n[3/8] Updating root package.json...");
   const pkg = await readJson("package.json");
 
   // Remove scripts for deleted apps
@@ -682,9 +699,9 @@ async function main() {
 
   await writeJson("package.json", pkg);
 
-  // --- Step 5: Clean up infra-env ---
+  // --- Step 4: Clean up infra-env ---
 
-  console.log("\n[5/9] Cleaning up infra-env schemas...");
+  console.log("\n[4/8] Cleaning up infra-env schemas...");
   for (const schema of config.envSchemasRemove) {
     const info = ENV_SCHEMA_MAP[schema];
     if (info && removeFile(info.file)) {
@@ -702,9 +719,9 @@ async function main() {
   await writeText("packages/infra-env/src/index.ts", keepExports.join("\n") + "\n");
   console.log("  Updated packages/infra-env/src/index.ts");
 
-  // --- Step 6: Generate CI/CD workflows ---
+  // --- Step 5: Generate CI/CD workflows ---
 
-  console.log("\n[6/9] Generating CI/CD workflows...");
+  console.log("\n[5/8] Generating CI/CD workflows...");
   await writeText(".github/workflows/pr-validation.yml", generatePrValidation(config, scope));
   console.log("  Generated .github/workflows/pr-validation.yml");
   await writeText(
@@ -713,9 +730,9 @@ async function main() {
   );
   console.log("  Generated .github/workflows/deploy-production.yml");
 
-  // --- Step 7: Clean lint configs ---
+  // --- Step 6: Clean lint configs ---
 
-  console.log("\n[7/9] Cleaning up lint configs...");
+  console.log("\n[6/8] Cleaning up lint configs...");
 
   // Collect kept app directories for routeTree filtering
   const keptApps = new Set(toKeep.map((p) => p.split("/")[1]).filter(Boolean));
@@ -746,22 +763,28 @@ async function main() {
     }
   }
 
-  // --- Step 8: Remove customize files ---
+  // --- Step 7: Remove customize files ---
 
-  console.log("\n[8/9] Removing customization files...");
+  console.log("\n[7/8] Removing customization files...");
   removeDir(".claude/skills/customize-template");
   removeFile(".claude/commands/customize-template.md");
   console.log("  Removed .claude/skills/customize-template/");
   console.log("  Removed .claude/commands/customize-template.md");
 
-  // --- Step 9: Rename + Install + Verify ---
+  // --- Step 8: Rename + Install + Verify ---
 
   if (projectName) {
-    console.log(`\n[9/9] Renaming @monorepo-template -> ${scope}...`);
+    console.log(`\n[8/8] Renaming @monorepo-template -> ${scope}...`);
     await run(["bun", "run", abs("scripts/rename.ts"), projectName, "--skip-install"]);
   } else {
-    console.log("\n[9/9] Skipping rename.");
+    console.log("\n[8/8] Skipping rename.");
   }
+
+  // Regenerate a minimal README for the chosen pattern — the template's
+  // multi-pattern README (with the "Choose your pattern" flow) no longer
+  // applies once customized.
+  await writeReadme(config, keepMobile, keepDocs, projectName ?? "app");
+  console.log("  Regenerated README.md");
 
   // Clean up scripts
   removeFile("scripts/rename.ts");
@@ -796,9 +819,7 @@ async function main() {
 
   console.log("\n  Remaining manual steps:");
   console.log("  - Update CLAUDE.md if needed (architecture examples)");
-  console.log("  - Update .cursorrules if needed (workspace structure section)");
   console.log("  - Update .claude/architecture.md if it references deleted apps");
-  console.log("  - Review .claude/todo-crud-reference.md");
   console.log("  - Commit the changes");
 
   console.log("\n  Run 'bun run dev' to start developing!\n");
