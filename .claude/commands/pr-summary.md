@@ -163,4 +163,4 @@ Ask:
 
 ### Commits
 
-- If commits are messy, suggest running `/commit-reorder` first
+- If commits are messy, suggest reorganizing them into logical, atomic commits first
