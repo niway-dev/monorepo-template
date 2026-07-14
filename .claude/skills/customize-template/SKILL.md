@@ -65,42 +65,37 @@ bun run rename raiko  # @monorepo-template -> @raiko everywhere
 
 ### Pattern-Specific Cleanups (handled by `bun run customize`)
 
-| Item                       | Client-Server                          | Fullstack serverFn                                                      | Fullstack + Convex                                      |
-| -------------------------- | -------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------- |
-| Scripts to remove          | dev:fullstack-fn, dev:fullstack-convex | dev:web, dev:server, dev:fullstack-convex                               | dev:web, dev:server, dev:fullstack-fn                   |
-| Catalog entries to remove  | convex, @convex-dev/react-query        | elysia, @elysiajs/eden, @elysiajs/cors, convex, @convex-dev/react-query | elysia, @elysiajs/eden, @elysiajs/cors                  |
-| Env schemas to remove      | fullstackServerEnvSchema               | serverEnvSchema, webServerEnvSchema, webClientEnvSchema                 | serverEnvSchema, webServerEnvSchema, webClientEnvSchema |
-| db:\* env source           | apps/server/.env                       | apps/fullstack-fn-only/.env                                             | apps/fullstack-fn-and-convex/.env                       |
-| CI/CD backend step         | keep                                   | remove                                                                  | remove                                                  |
-| .cursor/rules/backend.mdc  | keep                                   | delete                                                                  | delete                                                  |
-| .cursor/rules/frontend.mdc | keep                                   | delete                                                                  | delete                                                  |
+| Item                      | Client-Server                          | Fullstack serverFn                                                      | Fullstack + Convex                                      |
+| ------------------------- | -------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------- |
+| Scripts to remove         | dev:fullstack-fn, dev:fullstack-convex | dev:web, dev:server, dev:fullstack-convex                               | dev:web, dev:server, dev:fullstack-fn                   |
+| Catalog entries to remove | convex, @convex-dev/react-query        | elysia, @elysiajs/eden, @elysiajs/cors, convex, @convex-dev/react-query | elysia, @elysiajs/eden, @elysiajs/cors                  |
+| Env schemas to remove     | fullstackServerEnvSchema               | serverEnvSchema, webServerEnvSchema, webClientEnvSchema                 | serverEnvSchema, webServerEnvSchema, webClientEnvSchema |
+| db:\* env source          | apps/server/.env                       | apps/fullstack-fn-only/.env                                             | apps/fullstack-fn-and-convex/.env                       |
+| CI/CD backend step        | keep                                   | remove                                                                  | remove                                                  |
 
 ### Optional Features
 
 **Mobile (`apps/mobile/`):** If removed, also remove `dev:native` script and `@better-auth/expo` from catalog.
 
-**Documentation (`apps/documentation/`):** If removed, also delete `.cursor/rules/documentation.mdc`.
-
-**Convex skills:** 13 pre-loaded `.claude/skills/convex-*` directories for future integration. Remove if not using Convex.
+**Convex:** If not using Convex, `customize` removes `scripts/generate-convex-jwt-keys.ts` and the `generate:convex-jwt-keys` script.
 
 ---
 
 ## Post-Script Manual Steps
 
-The automated script handles structural changes but cannot rewrite prose content. After running `bun run customize`, check:
+The script regenerates `README.md` for the chosen pattern, but cannot rewrite
+the other prose docs. After running `bun run customize`, check:
 
-| File                             | What to update                                 |
-| -------------------------------- | ---------------------------------------------- |
-| `CLAUDE.md`                      | Architecture examples referencing deleted apps |
-| `.cursorrules`                   | Workspace structure, pattern-specific sections |
-| `.claude/architecture.md`        | References to deleted apps/server, apps/web    |
-| `.claude/ai-context.md`          | References to deleted app paths                |
-| `.claude/todo-crud-reference.md` | References to deleted apps                     |
+| File                      | What to update                                 |
+| ------------------------- | ---------------------------------------------- |
+| `CLAUDE.md`               | Architecture examples referencing deleted apps |
+| `.claude/architecture.md` | References to deleted apps/server, apps/web    |
+| `.claude/ai-context.md`   | References to deleted app paths                |
 
 Grep for stale references:
 
 ```bash
-grep -r "apps/web\|apps/server\|apps/fullstack" --include="*.md" --include="*.mdc" .claude/ .cursor/ .cursorrules CLAUDE.md
+grep -r "apps/web\|apps/server\|apps/fullstack" --include="*.md" .claude/ CLAUDE.md
 ```
 
 ---
@@ -114,7 +109,7 @@ Files typically affected (~60+):
 - All `package.json` files (root + packages + apps)
 - Source files with `import ... from "@monorepo-template/..."`
 - CI/CD workflows (`--filter='@monorepo-template/*'`)
-- `CLAUDE.md`, `.cursorrules`, `.env.x`
+- `CLAUDE.md`
 - Documentation `.mdx` files
 - `.claude/` context files
 - Lint/format configs
