@@ -6,7 +6,6 @@ import {
   keepPreviousData,
 } from "@tanstack/react-query";
 import { clientTreaty } from "@/lib/client-treaty";
-import { listTodos } from "@/server-functions/list-todos";
 
 interface TodosParams {
   page: number;
@@ -22,7 +21,13 @@ export const todoKeys = {
 export const todosQueryOptions = (params: TodosParams) =>
   queryOptions({
     queryKey: todoKeys.list(params),
-    queryFn: () => listTodos({ data: { page: params.page, limit: params.limit } }),
+    queryFn: async () => {
+      const { data, error } = await clientTreaty.api.v1.todos.get({
+        query: { page: params.page, limit: params.limit },
+      });
+      if (error) throw new Error("Failed to fetch todos");
+      return data;
+    },
     placeholderData: keepPreviousData,
   });
 

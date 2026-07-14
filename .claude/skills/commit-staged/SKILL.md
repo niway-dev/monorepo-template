@@ -113,8 +113,8 @@ Proposed commits (in order):
    - packages/infra-db/src/schema/hiring-process.ts
    - packages/infra-db/src/enums/salary-rate-type.ts (new)
 3. feat(ui): add rate type selector to hiring process form
-   - apps/web/src/components/hiring-process/hiring-process-form.tsx
-   - apps/web/src/components/hiring-process/hiring-process-table.tsx
+   - apps/<app>/src/components/hiring-process/hiring-process-form.tsx
+   - apps/<app>/src/components/hiring-process/hiring-process-table.tsx
 ...
 ```
 

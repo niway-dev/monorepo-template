@@ -1,6 +1,8 @@
 # Monorepo Template
 
-A production-ready monorepo template with DDD + Hexagonal Architecture, authentication, deployment configs, and a Todo CRUD example. Built with TypeScript, Bun, and Turborepo.
+A production-ready **multi-pattern** monorepo template with DDD + Hexagonal Architecture, authentication, Cloudflare deployment configs, and a Todo CRUD example. Built with TypeScript, Bun, and Turborepo.
+
+It ships **four interchangeable architecture patterns** side by side. You pick one with `bun run customize` (see [Choose your pattern](#choose-your-pattern)), which strips the repo down to just that pattern.
 
 ## Knowledge Documentation
 
@@ -23,6 +25,25 @@ Deferred work and ideas for this project go in the **Backlog** section of the do
 ([`apps/documentation/src/content/docs/backlog/`](./apps/documentation/src/content/docs/backlog/index.mdx))
 — see the [backlog pattern](https://github.com/csdev19/general-knowledge/blob/main/conventions/backlog-pattern.md).
 
+## Choose your pattern
+
+This is the **first thing to run on a fresh clone**. The template contains four patterns; `customize` keeps the one you choose and deletes the rest (apps, packages, scripts, catalog entries, CI, and env schemas), then optionally renames the `@monorepo-template` scope.
+
+```bash
+bun run customize
+```
+
+| Pattern                  | Apps kept                      | Data access       | Web dev port |
+| ------------------------ | ------------------------------ | ----------------- | ------------ |
+| **Client-Server Elysia** | `web-elysia` + `server-elysia` | Eden Treaty → API | 3003         |
+| **Client-Server Hono**   | `web-hono` + `server-hono`     | oRPC → API        | 3001         |
+| **Fullstack serverFn**   | `fullstack-fn-only`            | TanStack serverFn | 3002         |
+| **Fullstack + Convex**   | `fullstack-fn-and-convex`      | serverFn + Convex | 3004         |
+
+In the **client-server** patterns the web app is a pure proxy client: it forwards all `/api/auth/*` and `/api/v1/*` requests to a separate backend Worker and never touches the database or runs Better Auth itself. In the **fullstack** patterns the TanStack Start app is the backend — its serverFns talk to the database directly.
+
+`customize` self-deletes when done. If you only need to rename the package scope, run `bun run rename <scope>` instead.
+
 ## Getting Started
 
 ### Prerequisites
@@ -32,112 +53,92 @@ Deferred work and ideas for this project go in the **Backlog** section of the do
 
 ### Installation
 
-1. Clone the repository:
-
-```bash
-git clone <repository-url>
-cd monorepo-template
-```
-
-2. Install dependencies:
-
-```bash
-bun install
-```
-
-3. Set up environment variables:
-
-   **With dotenvx (recommended):**
-
-   Get the `.env.keys` file from your team lead and place it at the repo root. The encrypted `.env` files are already committed -- dotenvx decrypts them automatically at runtime.
-
-   **Manual setup (from scratch):**
-
-   Copy the `.env.example` files and fill in your values:
+1. Clone and pick a pattern:
 
    ```bash
-   # Server (Wrangler uses .dev.vars)
-   cp apps/server/.env.example apps/server/.dev.vars
-
-   # Web
-   cp apps/web/.env.example apps/web/.env
-
-   # Mobile (if needed)
-   cp apps/mobile/.env.example apps/mobile/.env
+   git clone <repository-url>
+   cd monorepo-template
+   bun install
+   bun run customize   # keep one pattern, delete the rest
    ```
 
-   Required variables:
+2. Set up environment variables:
 
-   | Variable             | Apps        | Description                                 |
-   | -------------------- | ----------- | ------------------------------------------- |
-   | `DATABASE_URL`       | server, web | Neon PostgreSQL connection string           |
-   | `BETTER_AUTH_SECRET` | server, web | `openssl rand -base64 32`                   |
-   | `BETTER_AUTH_URL`    | server      | Server URL (e.g., `http://localhost:3000`)  |
-   | `CORS_ORIGIN`        | server      | Web app URL (e.g., `http://localhost:3001`) |
-   | `VITE_SERVER_URL`    | web         | Server URL for Eden Treaty client           |
+   **With dotenvx (recommended):** get the `.env.keys` file from your team lead and place it at the repo root. The encrypted `.env` files are already committed — dotenvx decrypts them at runtime.
 
-4. Push the database schema:
+   **Manual setup:** copy the `.env.example` of each kept app and fill it in. Which vars you need depends on the pattern:
 
-```bash
-bun run db:push
-```
+   | Variable              | Where                   | Description                                   |
+   | --------------------- | ----------------------- | --------------------------------------------- |
+   | `DATABASE_URL`        | backend / fullstack app | Neon PostgreSQL connection string             |
+   | `DATABASE_URL_DIRECT` | backend app             | Direct (non-pooled) connection for migrations |
+   | `BETTER_AUTH_SECRET`  | backend / fullstack app | `openssl rand -base64 32`                     |
+   | `CORS_ORIGIN`         | backend app             | Web app origin (mobile CORS)                  |
+   | `VITE_SERVER_URL`     | web app (client-server) | Backend URL the web proxies to                |
 
-5. Start the development servers:
+   > The client-server **web** apps only need `VITE_SERVER_URL` — no DB URL or auth secret, since they proxy everything to the backend.
 
-```bash
-bun run dev
-```
+3. Push the database schema and start dev:
 
-The application will be available at:
-
-- **Web App**: http://localhost:3001
-- **API Server**: http://localhost:3000
+   ```bash
+   bun run db:push
+   bun run dev
+   ```
 
 ## Project Structure
 
 ```
 monorepo-template/
 ├── apps/
-│   ├── web/              # Frontend (TanStack Start on Cloudflare Workers)
-│   ├── server/           # Backend API (Elysia on Cloudflare Workers)
-│   ├── mobile/           # Mobile app (Expo / React Native)
-│   └── documentation/    # Documentation site (Astro Starlight)
+│   ├── web-elysia/               # Client-Server frontend (Eden Treaty)
+│   ├── server-elysia/            # Elysia API (Cloudflare Workers)
+│   ├── web-hono/                 # Client-Server frontend (oRPC)
+│   ├── server-hono/              # Hono + oRPC API (Cloudflare Workers)
+│   ├── fullstack-fn-only/        # TanStack Start fullstack (serverFn)
+│   ├── fullstack-fn-and-convex/  # TanStack Start + Convex realtime
+│   ├── mobile/                   # Mobile app (Expo / React Native)
+│   └── documentation/            # Documentation site (Astro Starlight)
 │
 ├── packages/
-│   ├── domain/           # Pure business logic: schemas, types, repository interfaces
-│   ├── application/      # Use cases (depends only on domain interfaces)
-│   ├── infra-db/         # Infrastructure: Drizzle schemas, repositories, mappers
-│   ├── infra-auth/       # Infrastructure: Better Auth configuration
-│   ├── web-ui/           # Shared React UI components (shadcn/ui)
-│   └── config/           # Shared TypeScript configuration
+│   ├── domain/            # Pure business logic: schemas, types, repository interfaces
+│   ├── application/       # Use cases (depends only on domain interfaces)
+│   ├── infra-db/          # Drizzle schemas, repositories, mappers
+│   ├── infra-auth/        # Better Auth configuration
+│   ├── infra-cloudflare/  # Worker-to-Worker proxy + Service Binding fetch (client-server)
+│   ├── infra-env/         # Zod env schemas per app type
+│   ├── web-ui/            # Shared React UI components (shadcn/ui)
+│   └── config/            # Shared TypeScript configuration
 ```
+
+Only the apps/packages for your chosen pattern remain after `customize`.
 
 ## Available Scripts
 
 ### Development
 
-- `bun run dev` -- Start all applications in development mode
-- `bun run dev:web` -- Start only the web application
-- `bun run dev:server` -- Start only the server
+- `bun run dev` — Start the kept application(s) in development mode
+- `bun run dev:web-elysia` / `dev:server-elysia` — Elysia pattern
+- `bun run dev:web-hono` / `dev:server-hono` — Hono pattern
+- `bun run dev:fullstack-fn` / `dev:fullstack-convex` — fullstack patterns
+- `bun run dev:native` — Start the Expo mobile app
 
 ### Building
 
-- `bun run build` -- Build all applications for production
+- `bun run build` — Build all applications for production
 
 ### Database
 
-- `bun run db:push` -- Push schema changes to database
-- `bun run db:studio` -- Open Drizzle Studio (database GUI)
-- `bun run db:generate` -- Generate migration files
-- `bun run db:migrate` -- Run database migrations
+- `bun run db:push` — Push schema changes to the database
+- `bun run db:studio` — Open Drizzle Studio (database GUI)
+- `bun run db:generate` — Generate migration files
+- `bun run db:migrate` — Run database migrations
 
 ### Code Quality
 
-- `bun run check-types` -- Check TypeScript types across all packages
-- `bun run lint` -- Lint all files with oxlint
-- `bun run format` -- Format all files with oxfmt
-- `bun run format:tracked` -- Format only git-tracked files
-- `bun run check` -- Run both lint and format
+- `bun run check-types` — Check TypeScript types across all packages
+- `bun run lint` — Lint all files with oxlint
+- `bun run format` — Format all files with oxfmt
+- `bun run check` — Run both lint and format
 
 ## Architecture
 
@@ -164,55 +165,52 @@ This template follows DDD + Hexagonal Architecture with a layer-first package st
                         v
                  ┌─────────────┐
                  │    apps     │  Wire everything together.
-                 │ server, web │  Dependency injection happens here.
-                 │   mobile    │
+                 │             │  Dependency injection happens here.
                  └─────────────┘
 ```
 
 The Todo CRUD example demonstrates this architecture end-to-end:
 
-1. **Domain** -- Zod schemas (`TodoBase`, `CreateTodo`, `UpdateTodo`) and repository interface (`ITodoRepository`)
-2. **Application** -- Use cases (`createTodo`, `listTodos`, `updateTodo`, `deleteTodo`)
-3. **Infrastructure** -- Drizzle table definition, `TodoRepository` implementation, `mapTodoToDomain` mapper
-4. **Server** -- Elysia REST routes at `/todos` wiring the repository to use cases
-5. **Web** -- TanStack Start pages under `/_authenticated/todos/`
+1. **Domain** — Zod schemas (`TodoBase`, `CreateTodo`, `UpdateTodo`) and repository interface (`ITodoRepository`)
+2. **Application** — Use cases (`createTodo`, `listTodos`, `updateTodo`, `deleteTodo`)
+3. **Infrastructure** — Drizzle table definition, `TodoRepository` implementation, `mapTodoToDomain` mapper
+4. **Backend** — REST/oRPC routes at `/todos` (client-server) or serverFns (fullstack) wiring repositories to use cases
+5. **Web** — TanStack Start pages under `/_authenticated/todos/`
 
 ## Tech Stack
 
-| Layer         | Technology                             |
-| ------------- | -------------------------------------- |
-| Runtime       | Bun                                    |
-| Language      | TypeScript                             |
-| Monorepo      | Turborepo + Bun Workspaces             |
-| Frontend      | TanStack Start, React, TanStack Router |
-| Backend       | Elysia                                 |
-| Mobile        | Expo (React Native)                    |
-| Database      | Neon PostgreSQL, Drizzle ORM           |
-| Auth          | Better Auth                            |
-| UI Components | shadcn/ui, Tailwind CSS                |
-| Linting       | oxlint                                 |
-| Formatting    | oxfmt                                  |
-| Deployment    | Cloudflare Workers                     |
-| Documentation | Fumadocs (Next.js)                     |
+| Layer         | Technology                                 |
+| ------------- | ------------------------------------------ |
+| Runtime       | Bun                                        |
+| Language      | TypeScript                                 |
+| Monorepo      | Turborepo + Bun Workspaces                 |
+| Frontend      | TanStack Start, React, TanStack Router     |
+| Backend       | Elysia (Eden) or Hono (oRPC), or serverFns |
+| Realtime      | Convex (optional pattern)                  |
+| Mobile        | Expo (React Native)                        |
+| Database      | Neon PostgreSQL, Drizzle ORM               |
+| Auth          | Better Auth                                |
+| UI Components | shadcn/ui, Tailwind CSS                    |
+| Linting       | oxlint                                     |
+| Formatting    | oxfmt                                      |
+| Deployment    | Cloudflare Workers (Wrangler)              |
+| Documentation | Astro Starlight                            |
 
 ## Deployment
 
-Both the web app and API server deploy to Cloudflare Workers.
+Apps deploy to Cloudflare Workers via Wrangler. Each app has a `deploy` script:
 
 ```bash
-# Deploy the web app
-cd apps/web && bun run deploy
-
-# Deploy the server
-cd apps/server && bun run deploy
+# Deploy a kept app (example: the Elysia pattern)
+cd apps/web-elysia && bun run deploy
+cd apps/server-elysia && bun run deploy
 ```
 
-For Cloudflare Workers secrets:
+CI (`.github/workflows/deploy-production.yml`) deploys via `cloudflare/wrangler-action`. Set Worker secrets with:
 
 ```bash
 wrangler secret put DATABASE_URL
 wrangler secret put BETTER_AUTH_SECRET
-wrangler secret put BETTER_AUTH_URL
 ```
 
 ## License

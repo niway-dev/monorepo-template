@@ -35,7 +35,7 @@ This application uses **Better Auth** with **TanStack Start** to create a **full
 
 ### Key Components
 
-#### 1. Auth Proxy Pattern (`apps/web/src/routes/api/auth/$.ts`)
+#### 1. Auth Proxy Pattern (`apps/web-elysia/src/routes/api/auth/$.ts`)
 
 **Purpose**: Solve cross-origin cookie issues by proxying all auth requests.
 
@@ -57,7 +57,7 @@ export const Route = createFileRoute("/api/auth/$")({
 Browser → /api/auth/* (same origin) → Proxy → Backend → Cookies work! ✅
 ```
 
-#### 2. Server-Side Session Validation (`apps/web/src/routes/__root.tsx`)
+#### 2. Server-Side Session Validation (`apps/web-elysia/src/routes/__root.tsx`)
 
 **Purpose**: Validate session on the server BEFORE rendering any page.
 
@@ -104,7 +104,7 @@ function MyComponent() {
 
 #### 4. Auth Client Configuration
 
-**Location**: `apps/web/src/lib/auth/auth-client.ts`
+**Location**: `apps/web-elysia/src/lib/auth/auth-client.ts`
 
 ```typescript
 export const authClient = createAuthClient({
@@ -119,7 +119,7 @@ export const authClient = createAuthClient({
 
 #### 5. Server Functions
 
-**Location**: `apps/web/src/lib/auth/functions.ts`
+**Location**: `apps/web-elysia/src/lib/auth/get-auth-session.ts`
 
 ```typescript
 // Server function to get session
@@ -158,7 +158,7 @@ export const getAuthSession = createServerFn({ method: "GET" })
 ### Protected Routes Pattern
 
 ```typescript
-// apps/web/src/routes/_authenticated.tsx
+// apps/web-elysia/src/routes/_authenticated.tsx
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
 });
@@ -284,7 +284,7 @@ All API responses MUST follow the `ApiResponse<T>` structure:
 
 ### Response Helpers
 
-Always use helpers from `apps/server/src/utils/response-helpers.ts`:
+Always use helpers from `apps/server-elysia/src/utils/response-helpers.ts`:
 - `successBody(data)` - 200 OK
 - `createdBody(data)` - 201 Created
 - `successWithPaginationBody(data, pagination, total)` - Paginated response
@@ -307,7 +307,7 @@ export const routes = new Elysia({ prefix: "/api/entities" })
 
 ### Error Handling
 
-Use custom errors from `apps/server/src/utils/errors.ts`:
+Use custom errors from `apps/server-elysia/src/utils/errors.ts`:
 - `BadRequestError` - 400 (validation failures)
 - `UnauthorizedError` - 401 (auth required)
 - `ForbiddenError` - 403 (authorization failed)
@@ -534,9 +534,9 @@ If complexity grows:
 2. Create schemas in `packages/domain/src/schemas/`
 3. Create database schema in `packages/infra-db/src/schema/`
 4. Run migrations
-5. Create backend routes in `apps/server/src/routes/`
-6. Create frontend hooks in `apps/web/src/hooks/`
-7. Create UI components in `apps/web/src/components/`
+5. Create backend routes in `apps/server-elysia/src/routes/`
+6. Create frontend hooks in `apps/web-elysia/src/hooks/`
+7. Create UI components in `apps/web-elysia/src/components/`
 8. Document in `apps/documentation/src/content/docs/`
 
 ### Building Packages

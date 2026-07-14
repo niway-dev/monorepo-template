@@ -123,7 +123,7 @@ in any CLAUDE.md file. Don't add pointers for every sub-feature.
 
 Format: `For {feature} details, see {DOCS_BASE}/features/{parent}/{INDEX_FILE}`
 
-Check if a subdirectory CLAUDE.md (e.g., `apps/web/CLAUDE.md` or
+Check if a subdirectory CLAUDE.md (e.g., `apps/<app>/CLAUDE.md` or
 `packages/core/CLAUDE.md`) is more appropriate than the root CLAUDE.md.
 
 ## Step 9: Present summary

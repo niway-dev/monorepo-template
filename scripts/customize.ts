@@ -76,7 +76,6 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       "apps/server-hono",
       "apps/fullstack-fn-only",
       "apps/fullstack-fn-and-convex",
-      "packages/infra-cloudflare",
     ],
     scriptsRemove: [
       ...DEAD_SCRIPTS,
@@ -120,7 +119,6 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       "apps/server-elysia",
       "apps/fullstack-fn-only",
       "apps/fullstack-fn-and-convex",
-      "packages/infra-cloudflare",
     ],
     scriptsRemove: [
       ...DEAD_SCRIPTS,
@@ -178,7 +176,7 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       "dev:convex:setup",
       "generate:convex-jwt-keys",
     ],
-    catalogRemove: [...ELYSIA_CATALOG, ...HONO_ORPC_CATALOG, ...CONVEX_CATALOG],
+    catalogRemove: [...ELYSIA_CATALOG, ...HONO_ORPC_CATALOG, ...CONVEX_CATALOG, "wrangler"],
     envSchemasRemove: [
       "serverEnvSchema",
       "webServerEnvSchema",
@@ -227,7 +225,7 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       "dev:server-hono",
       "dev:fullstack-fn",
     ],
-    catalogRemove: [...ELYSIA_CATALOG, ...HONO_ORPC_CATALOG],
+    catalogRemove: [...ELYSIA_CATALOG, ...HONO_ORPC_CATALOG, "wrangler"],
     envSchemasRemove: ["serverEnvSchema", "webServerEnvSchema", "webClientEnvSchema"],
     envFilesToDelete: [
       "packages/infra-env/src/server.ts",
@@ -623,6 +621,11 @@ async function main() {
     let count = 0;
     for (const dir of CONVEX_SKILLS) {
       if (removeDir(dir)) count++;
+    }
+    // The Convex JWT key generator is only meaningful for fullstack-fn-and-convex.
+    // Its package.json script is stripped elsewhere; delete the orphaned file too.
+    if (removeFile("scripts/generate-convex-jwt-keys.ts")) {
+      console.log("  Removed scripts/generate-convex-jwt-keys.ts");
     }
     console.log(`  Removed ${count} Convex skill directories`);
   } else {

@@ -26,7 +26,6 @@
     "@monorepo-template/domain": "workspace:*",
     "@monorepo-template/infra-db": "workspace:*",
     "better-auth": "catalog:",
-    "dotenv": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

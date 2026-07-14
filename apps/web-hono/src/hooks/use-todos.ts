@@ -6,7 +6,6 @@ import {
   keepPreviousData,
 } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc-client";
-import { listTodos } from "@/server-functions/list-todos";
 
 interface TodosParams {
   page: number;
@@ -21,8 +20,10 @@ export const todoKeys = {
 
 export const todosQueryOptions = (params: TodosParams) =>
   queryOptions({
+    ...orpc.todo.list.queryOptions({
+      input: { page: params.page, limit: params.limit },
+    }),
     queryKey: todoKeys.list(params),
-    queryFn: () => listTodos({ data: { page: params.page, limit: params.limit } }),
     placeholderData: keepPreviousData,
   });
 

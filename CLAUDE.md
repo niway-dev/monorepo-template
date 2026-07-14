@@ -17,9 +17,9 @@ When building new features, follow a two-phase approach:
 
 Build the feature the simplest way possible. All logic can live inline in the frontend and backend:
 
-- Add routes with inline business logic directly in `apps/server/src/routes/`
-- Add serverFn with inline logic in `apps/web/src/functions/`
-- Use `@monorepo-template/infra-db` repositories directly from route handlers
+- Add routes with inline business logic directly in the backend app's routes (e.g. `apps/server-elysia/src/routes/`, `apps/server-hono/src/modules/`) — or, in the fullstack patterns, serverFns in `apps/fullstack-fn-*/src/server-functions/`
+- Add serverFn / data hooks with inline logic in the web app (`apps/web-*/src/hooks/`)
+- Use `@monorepo-template/infra-db` repositories directly from the backend handlers
 - Focus on making it work end-to-end (UI -> API -> DB)
 - No need for use cases, domain interfaces, or mappers at this stage
 
@@ -69,13 +69,14 @@ The web app (TanStack Start) proxies all API requests through itself to the Elys
 - In local dev: regular `fetch()` fallback (Service Bindings not available)
 - Set-Cookie headers are rewritten to strip `domain=` so cookies are assigned to the web domain
 
-**Key files:**
+**Key files** (paths shown for `web-elysia`; `web-hono` is identical except the transport client):
 
-- `apps/web/src/lib/api-fetch.ts` — Service Binding fetch wrapper with local dev fallback
-- `apps/web/src/routes/api/auth/$.ts` — Auth proxy (forwards x-forwarded-host/proto)
-- `apps/web/src/routes/api/v1/$.ts` — API proxy
-- `apps/web/wrangler.jsonc` — Service Binding declared in `services` array
-- `apps/web/src/lib/client-treaty.ts` — Eden Treaty uses `window.location.origin` (not server URL)
+- `packages/infra-cloudflare/` — shared Service Binding fetch + proxy handler used by both web apps
+- `apps/web-elysia/src/lib/api-fetch.ts` — re-exports `createServiceFetch` (local dev fallback) from `infra-cloudflare`
+- `apps/web-elysia/src/routes/api/auth/$.ts` — Auth proxy (forwards x-forwarded-host/proto)
+- `apps/web-elysia/src/routes/api/v1/$.ts` — API proxy
+- `apps/web-elysia/wrangler.jsonc` — Service Binding declared in `services` array
+- `apps/web-elysia/src/lib/client-treaty.ts` — Eden Treaty uses `window.location.origin` (web-hono uses `orpc-client.ts`)
 
 **Important:**
 
