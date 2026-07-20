@@ -29,6 +29,8 @@ type Pattern =
 interface PatternConfig {
   label: string;
   keep: string[];
+  /** The mobile app this pattern pairs with (the other mobile variants are always removed). */
+  mobileApp: string;
   remove: string[];
   scriptsRemove: string[];
   catalogRemove: string[];
@@ -62,6 +64,14 @@ const CONVEX_CATALOG = ["convex", "@convex-dev/react-query"];
 // Scripts that no longer reference valid apps (legacy cleanup)
 const DEAD_SCRIPTS = ["dev:web", "dev:server"];
 
+// The two mobile variants: `mobile` (for the non-Convex stacks) and `mobile-convex`
+// (Expo + Better-Auth-in-Convex). A pattern keeps its own via `mobileApp`; the other is
+// always removed. `convex-auth-api` is only used by `mobile-convex`.
+const MOBILE_APPS = ["apps/mobile", "apps/mobile-convex"];
+
+// Packages not wired into any app today — removed for every pattern (weeds).
+const UNUSED_PACKAGES = ["packages/i18n", "packages/tokens"];
+
 // ---------------------------------------------------------------------------
 // Pattern Configurations
 // ---------------------------------------------------------------------------
@@ -70,6 +80,7 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
   "client-server-elysia": {
     label: "Client-Server Elysia (apps/web-elysia + apps/server-elysia)",
     keep: ["apps/web-elysia", "apps/server-elysia"],
+    mobileApp: "apps/mobile",
     remove: [
       "apps/web-hono",
       "apps/server-hono",
@@ -112,6 +123,7 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
   "client-server-hono": {
     label: "Client-Server Hono + oRPC (apps/web-hono + apps/server-hono)",
     keep: ["apps/web-hono", "apps/server-hono"],
+    mobileApp: "apps/mobile",
     remove: [
       "apps/web-elysia",
       "apps/server-elysia",
@@ -154,6 +166,7 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
   "fullstack-fn-only": {
     label: "Fullstack serverFn only (apps/fullstack-fn-only)",
     keep: ["apps/fullstack-fn-only"],
+    mobileApp: "apps/mobile",
     remove: [
       "apps/web-elysia",
       "apps/server-elysia",
@@ -205,6 +218,7 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
   "fullstack-fn-and-convex": {
     label: "Fullstack serverFn + Convex (apps/fullstack-fn-and-convex)",
     keep: ["apps/fullstack-fn-and-convex"],
+    mobileApp: "apps/mobile-convex",
     remove: [
       "apps/web-elysia",
       "apps/server-elysia",
@@ -221,7 +235,9 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       "dev:server-hono",
       "dev:fullstack-fn",
     ],
-    catalogRemove: [...ELYSIA_CATALOG, ...HONO_ORPC_CATALOG, "wrangler"],
+    // NOTE: keep `wrangler` — the Convex fullstack app deploys to Cloudflare Workers
+    // (apps/fullstack-fn-and-convex/wrangler.jsonc), unlike the fn-only pattern.
+    catalogRemove: [...ELYSIA_CATALOG, ...HONO_ORPC_CATALOG],
     envSchemasRemove: ["serverEnvSchema", "webServerEnvSchema", "webClientEnvSchema"],
     envFilesToDelete: [
       "packages/infra-env/src/server.ts",
@@ -328,7 +344,7 @@ async function writeReadme(
 ): Promise<void> {
   const apps = [
     ...config.keep,
-    ...(keepMobile ? ["apps/mobile"] : []),
+    ...(keepMobile ? [config.mobileApp] : []),
     ...(keepDocs ? ["apps/documentation"] : []),
   ]
     .map((p) => `- \`${p}\``)
@@ -609,14 +625,21 @@ async function main() {
 
   // --- Confirm ---
 
-  const toDelete = [...config.remove];
-  if (!keepMobile) toDelete.push("apps/mobile");
+  const toDelete = [...config.remove, ...UNUSED_PACKAGES];
+  // Mobile: keep only this pattern's variant (if the user wants mobile); the other
+  // mobile variant is always removed.
+  const keepMobileConvex = keepMobile && config.mobileApp === "apps/mobile-convex";
+  for (const m of MOBILE_APPS) {
+    if (m !== config.mobileApp || !keepMobile) toDelete.push(m);
+  }
+  // `convex-auth-api` is only consumed by `mobile-convex`.
+  if (!keepMobileConvex) toDelete.push("packages/convex-auth-api");
   if (!keepDocs) toDelete.push("apps/documentation");
   if (!keepConvex) toDelete.push("packages/convex-api");
 
   const toKeep = [
     ...config.keep,
-    ...(keepMobile ? ["apps/mobile"] : []),
+    ...(keepMobile ? [config.mobileApp] : []),
     ...(keepDocs ? ["apps/documentation"] : []),
   ];
 
@@ -673,6 +696,13 @@ async function main() {
       delete pkg.scripts[script];
       console.log(`  Removed script: ${script}`);
     }
+  }
+
+  // Repoint dev:native at this pattern's mobile app (e.g. mobile-convex).
+  if (keepMobile && pkg.scripts?.["dev:native"]) {
+    const mobileName = config.mobileApp.split("/")[1];
+    pkg.scripts["dev:native"] = `turbo run dev -F ${mobileName}`;
+    console.log(`  Repointed dev:native -> ${mobileName}`);
   }
 
   // Update db:* env source path

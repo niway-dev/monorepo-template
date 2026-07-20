@@ -1,109 +1,64 @@
 # Development Rules
 
+This is a **multi-pattern** monorepo template (DDD + Hexagonal Architecture, TypeScript, Bun,
+Turborepo). It ships four interchangeable web patterns plus mobile and docs; `bun run customize`
+strips it down to the one you pick.
+
 ## Template Customization
 
-This is a multi-pattern template. Before starting development, customize it:
+Before starting development, customize a fresh clone:
 
-- `bun run customize` — Interactive CLI: choose pattern, optional features, project name. Handles directory deletion, package.json cleanup, CI/CD generation, infra-env cleanup, lint config cleanup, and scope rename. Self-deletes after completion.
-- `bun run rename <scope>` — Standalone scope rename (`@monorepo-template` -> `@your-scope` across 60+ files). Use if you only need to rename.
+- `bun run customize` — Interactive CLI: choose pattern, optional features (mobile, docs, Convex),
+  project name. Handles directory deletion, package.json cleanup, CI/CD generation, infra-env
+  cleanup, lint config cleanup, and scope rename. Self-deletes after completion.
+- `bun run rename <scope>` — Standalone scope rename (`@monorepo-template` -> `@your-scope` across
+  60+ files). Use if you only need to rename.
 
 Always recommend `bun run customize` on a fresh clone. Do NOT do manual file-by-file customization.
 
-## Development Workflow: MVP First, Then Refactor
+## Knowledge lives in the hub, not here
 
-When building new features, follow a two-phase approach:
+Reusable, product-agnostic knowledge is **not** duplicated in this file — it lives in the
+[general-knowledge hub](https://github.com/csdev19/general-knowledge). The README has the full stack
+recipe table; start from the recipe matching your chosen pattern. Key topics (don't re-document them
+here):
 
-### Phase 1: MVP (Speed)
-
-Build the feature the simplest way possible. All logic can live inline in the frontend and backend:
-
-- Add routes with inline business logic directly in the backend app's routes (e.g. `apps/server-elysia/src/routes/`, `apps/server-hono/src/modules/`) — or, in the fullstack patterns, serverFns in `apps/fullstack-fn-*/src/server-functions/`
-- Add serverFn / data hooks with inline logic in the web app (`apps/web-*/src/hooks/`)
-- Use `@monorepo-template/infra-db` repositories directly from the backend handlers
-- Focus on making it work end-to-end (UI -> API -> DB)
-- No need for use cases, domain interfaces, or mappers at this stage
-
-### Phase 2: Refactor to Architecture Standards
-
-Once the feature works, refactor to follow the layer architecture:
-
-1. **Domain** (`packages/domain/`) -- Extract interfaces, schemas, types, constants
-2. **Application** (`packages/application/`) -- Extract use cases that depend only on domain interfaces
-3. **Infrastructure** (`packages/infra-db/`, `packages/infra-auth/`) -- Repository implementations, mappers
-4. **Consumers** (`apps/*`) -- Thin handlers that wire application use cases with infra implementations
-
-The dependency rule is strict: domain <- application <- infra, and only apps wire them together.
-
-### When to Refactor
-
-- When a second consumer needs the same logic (e.g., both web serverFn and API route)
-- When business logic exceeds ~15 lines in a route handler
-- When the feature is stable and tested
-
-## Architecture
-
-This project uses DDD + Hexagonal Architecture with layer-first package structure:
-
-```
-packages/domain/        Pure. Mobile-safe. Constants, schemas, types, interfaces.
-packages/application/   Use cases. Server-only. Depends on domain interfaces.
-packages/infra-db/      Infrastructure. Server-only. Drizzle repos, mappers, schemas.
-packages/infra-auth/    Infrastructure. Server-only. Better Auth configuration.
-```
-
-Infrastructure packages use the `infra-*` naming convention to make architectural intent explicit.
-
-## Skill Configuration
-
-Skills in `.claude/skills/` may have a **Configuration** table with paths (e.g., `DOCS_BASE`). If you detect a mismatch between a skill's configured path and the actual project path, update the skill's Configuration table directly so future sessions use the correct path without re-discovering it.
-
-## Client-Server Architecture (Web + Elysia API)
-
-The web app (TanStack Start) proxies all API requests through itself to the Elysia backend. This solves cookie-based auth on Cloudflare Workers where cross-origin cookies don't work.
-
-**How it works:**
-
-- Browser talks only to the web Worker domain (same-origin)
-- Web Worker proxies `/api/auth/*` and `/api/v1/*` to the Elysia API Worker
-- In production: Cloudflare Service Bindings (direct Worker-to-Worker, no public DNS)
-- In local dev: regular `fetch()` fallback (Service Bindings not available)
-- Set-Cookie headers are rewritten to strip `domain=` so cookies are assigned to the web domain
-
-**Key files** (paths shown for `web-elysia`; `web-hono` is identical except the transport client):
-
-- `packages/infra-cloudflare/` — shared Service Binding fetch + proxy handler used by both web apps
-- `apps/web-elysia/src/lib/api-fetch.ts` — re-exports `createServiceFetch` (local dev fallback) from `infra-cloudflare`
-- `apps/web-elysia/src/routes/api/auth/$.ts` — Auth proxy (forwards x-forwarded-host/proto)
-- `apps/web-elysia/src/routes/api/v1/$.ts` — API proxy
-- `apps/web-elysia/wrangler.jsonc` — Service Binding declared in `services` array
-- `apps/web-elysia/src/lib/client-treaty.ts` — Eden Treaty uses `window.location.origin` (web-hono uses `orpc-client.ts`)
-
-**Important:**
-
-- Web app does NOT run Better Auth locally — it proxies to the backend's auth
-- `@monorepo-template/infra-auth` is NOT a dependency of the web app
-- CORS on the server is only for mobile (exp://, mobile://) — web is same-origin via proxy
-- After modifying wrangler.jsonc, run `wrangler types` to regenerate `worker-configuration.d.ts`
+- **Feature workflow** — [MVP first, then refactor](https://github.com/csdev19/general-knowledge/blob/main/conventions/mvp-first-then-refactor.md).
+- **Architecture & the dependency rule** — [architecture/](https://github.com/csdev19/general-knowledge/blob/main/architecture/README.md)
+  (`domain <- application <- infra-*`; `infra-*` naming convention; import rules).
+- **Client-Server proxy (Elysia/Hono patterns)** — the web app proxies `/api/auth/*` and `/api/v1/*`
+  to the API Worker via Cloudflare Service Bindings (same-origin cookies on Workers). See
+  [api/](https://github.com/csdev19/general-knowledge/blob/main/api/README.md) and the
+  [elysia](https://github.com/csdev19/general-knowledge/blob/main/stacks/fullstack-elysia-eden.md) /
+  [hono](https://github.com/csdev19/general-knowledge/blob/main/stacks/fullstack-hono-orpc.md) recipes.
+- **Convex (realtime pattern)** — [convex/](https://github.com/csdev19/general-knowledge/blob/main/convex/README.md)
+  (client connection, Better Auth hosted in Convex, pinned SDK versions).
+- **web-ui `dist/` build strategy** — [web/web-ui-package.md](https://github.com/csdev19/general-knowledge/blob/main/web/web-ui-package.md).
+- **Cloudflare Wrangler & env config** — [monorepos/wrangler-env-config.md](https://github.com/csdev19/general-knowledge/blob/main/monorepos/wrangler-env-config.md).
 
 ## Package Import Rules
 
 - `domain` never imports from `application` or `infra-*`
 - `application` never imports from `infra-*` (uses domain interfaces)
 - `infra-*` never imports from `application`
-- Mobile app (`apps/mobile/`) only imports from `@monorepo-template/domain`
+- Mobile apps (`apps/mobile/`, `apps/mobile-convex/`) only import `@monorepo-template/domain`
+  (and, for `mobile-convex`, `@monorepo-template/convex-auth-api`)
 
-## Environment Variables & Wrangler
+## Project-specific rules
 
-- **ALWAYS use `.env` (and `.dev.vars` for local Worker secrets). NEVER declare a `vars` / `[vars]` / `[env.*]` block in `wrangler.jsonc`.** Recent Wrangler versions auto-load `.env` at dev/build time, so a `vars` block in `wrangler.jsonc` duplicates config and drifts from `.env` (the single source of truth). Production values are injected as Wrangler secrets via `cloudflare/wrangler-action` in CI, not committed anywhere.
-- **Deploy with Wrangler, not Alchemy.** The apps ship through `wrangler deploy` (CI uses `cloudflare/wrangler-action`). Do not reintroduce `alchemy` / `alchemy.run.ts` — it was removed as a redundant parallel deploy path.
-- **Wrangler is pinned in the root catalog** (`package.json` → `workspaces.catalog.wrangler`). Bump it there (and mirror the version in `.github/workflows/deploy-production.yml`'s `bun add -g wrangler@<version>`) so every app resolves the same version. Reference it per-app as `"wrangler": "catalog:"`.
-- **Keep `compatibility_date` current and identical across all `wrangler.jsonc` files.** When bumping, set today's date and review the Cloudflare compatibility-flags changelog. After editing `wrangler.jsonc`, run `wrangler types` to regenerate `worker-configuration.d.ts`.
+- **Skill Configuration:** Skills in `.claude/skills/` may have a **Configuration** table with paths
+  (e.g. `DOCS_BASE`). If a skill's configured path no longer matches the actual project path, update
+  the skill's Configuration table directly so future sessions don't re-discover it.
+- **Env / Wrangler (sharp gotcha):** ALWAYS use `.env` (and `.dev.vars` for local Worker secrets).
+  NEVER add a `vars` / `[vars]` / `[env.*]` block to `wrangler.jsonc` — Wrangler auto-loads `.env`,
+  so a `vars` block drifts from the single source of truth. Wrangler is pinned in the root catalog;
+  keep `compatibility_date` current and identical across all `wrangler.jsonc`, and run
+  `wrangler types` after editing one. Full rules in the hub link above.
+- **web-ui needs `dist/`:** `@monorepo-template/web-ui` exports point to built files. If you hit
+  "Cannot find module", run `bun run build` inside `packages/web-ui/`. `dist/` is committed; rebuild
+  after editing web-ui components.
 
 ## Common Commands
 
-- `bun run db:push` — Push Drizzle schema to DB (run from monorepo root, NOT from packages/infra-db/)
+- `bun run db:push` — Push Drizzle schema to DB (run from monorepo root, NOT from `packages/infra-db/`)
 - `bun run db:studio` — Open Drizzle Studio to inspect DB
-
-## Known Issues
-
-- `@monorepo-template/web-ui` requires `dist/` to exist — the package exports point to built files (`./dist/index.d.ts`, `./dist/index.es.js`). If you get "Cannot find module" errors, run `bun run build` in `packages/web-ui/` to regenerate it. The `dist/` directory is committed to the repo and should be rebuilt after modifying web-ui components
