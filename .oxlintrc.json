@@ -146,6 +146,7 @@
     "apps/web-hono/src/routeTree.gen.ts",
     "**/worker-configuration.d.ts",
     "**/.next/**",
+    "**/.astro/**",
     "**/.wrangler/**",
     "**/.source/**",
     "**/convex/_generated/**"
