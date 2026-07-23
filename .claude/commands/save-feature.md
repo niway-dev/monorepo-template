@@ -24,7 +24,7 @@ Use these values for ALL paths in the steps below. Resolved paths follow this pa
 - Feature folder: `{DOCS_BASE}/features/{parent}/`
 - Parent index: `{DOCS_BASE}/features/{parent}/{INDEX_FILE}`
 - Sub-feature doc: `{DOCS_BASE}/features/{parent}/{sub-feature}{DOCS_EXT}`
-- Changelog: `{DOCS_BASE}/CHANGELOG{DOCS_EXT}`
+- Changelog entry: `{DOCS_BASE}/changelog/{YYYY-MM-DD}-{short-kebab-title}{DOCS_EXT}` (the index is auto-generated — never edit it)
 
 ## Step 2: Identify the feature
 
@@ -109,12 +109,14 @@ date +%Y-%m-%d
 
 Follow the template format strictly. Do not invent sections that aren't in the template.
 
-## Step 7: Update the changelog
+## Step 7: Add changelog entry
 
-If `{DOCS_BASE}/CHANGELOG{DOCS_EXT}` doesn't exist, create it with the header from the template.
+Create a new entry **file** `{DOCS_BASE}/changelog/{YYYY-MM-DD}-{short-kebab-title}{DOCS_EXT}`
+using the Changelog Entry Template from the template skill. Link to the sub-feature
+doc, not the parent index.
 
-Append an entry to the **top of the table** (newest first) following the changelog
-format in the template skill. Link to the sub-feature doc, not the parent index.
+**Do NOT edit `changelog/{INDEX_FILE}`** — it is auto-generated from the entry files
+(newest first by filename date prefix); creating the entry file is all it takes.
 
 ## Step 8: Update CLAUDE.md pointer (if needed)
 
