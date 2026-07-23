@@ -67,7 +67,7 @@ export default defineConfig({
         },
         {
           label: "Changelog",
-          items: [{ slug: "changelog" }],
+          autogenerate: { directory: "changelog" },
         },
       ],
     }),

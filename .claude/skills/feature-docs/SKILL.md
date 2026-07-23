@@ -4,7 +4,7 @@ description: Template and format for feature documentation. Use when
   creating or updating feature docs. Also use when the user asks to
   document a feature, save feature context, or update the changelog.
   Provides templates for parent index pages, sub-feature docs, and
-  the changelog table.
+  changelog entries.
 ---
 
 # Feature Documentation Templates
@@ -169,24 +169,35 @@ describe the pattern/algorithm/flow in 3-5 sentences max.}
 
 ---
 
-## Changelog Template
+## Changelog Entry Template
 
-Location: `{DOCS_BASE}/CHANGELOG{DOCS_EXT}`
+Location: `{DOCS_BASE}/changelog/{YYYY-MM-DD}-{short-kebab-title}{DOCS_EXT}` — **one file per entry**.
 
-Purpose: Global log of all feature work across the project.
-Newest entries at the TOP of the table.
+Purpose: Global log of all feature work across the project — the "why" behind
+each change, not a commit list.
+
+The index (`{DOCS_BASE}/changelog/{INDEX_FILE}`) is **auto-generated** from the
+entry files by `src/components/ChangelogIndex.astro` (newest first, sorted by
+the filename's date prefix — the prefix is mandatory). **Never edit the index**;
+creating the entry file is all it takes. This avoids per-entry index edits and
+the merge conflicts they cause.
+
+The frontmatter `description` must be short (1-2 lines): it becomes the index
+card text.
 
 ```mdx
 ---
-title: Changelog
-description: All notable feature work documented in this project.
+title: "{Month DD, YYYY} - {Feature name}"
+description: { 1-2 line summary — index card text }
+date: { YYYY-MM-DD }
+tags:
+  - changelog
+  - { feature | bugfix | ... }
 ---
 
-# Changelog
+{Type icon} **{Type}** — {What changed and why, 1-3 sentences.}
 
-| Date | Feature | Type | Summary |
-|------|---------|------|---------|
-| YYYY-MM-DD | [{name}](features/{parent}/{sub-feature}) | ✨ Feature | {one-line summary} |
+**Docs:** [{name}](/features/{parent}/{sub-feature})
 ```
 
 Type icons:
