@@ -23,14 +23,24 @@ const ROOT = path.resolve(import.meta.dir, "..");
 type Pattern =
   | "client-server-elysia"
   | "client-server-hono"
+  | "server-only-hono"
   | "fullstack-fn-only"
   | "fullstack-fn-and-convex";
 
 interface PatternConfig {
   label: string;
   keep: string[];
-  /** The mobile app this pattern pairs with (the other mobile variants are always removed). */
-  mobileApp: string;
+  /**
+   * The mobile app this pattern pairs with (the other mobile variants are always removed).
+   * `null` for backend-only patterns: both mobile variants go and the prompt is skipped.
+   */
+  mobileApp: string | null;
+  /**
+   * Packages no app in this pattern wires up. Defaults to `UNUSED_PACKAGES`; a pattern
+   * that actually consumes one of them (e.g. backend-only keeps `i18n` for email and
+   * push copy) narrows the list.
+   */
+  unusedPackages: string[];
   remove: string[];
   scriptsRemove: string[];
   catalogRemove: string[];
@@ -43,6 +53,12 @@ interface PatternConfig {
   ciBuildEnv: Record<string, string>;
   ciDeployVars: string[];
   ciDeploySecrets: string[];
+  /**
+   * Source edits this pattern needs beyond deleting directories — e.g. dropping a
+   * dependency whose catalog entry the pattern removes. Runs before the rename, so
+   * write `@monorepo-template` imports and let the rename step translate them.
+   */
+  postProcess?: () => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,8 +85,20 @@ const DEAD_SCRIPTS = ["dev:web", "dev:server"];
 // always removed. `convex-auth-api` is only used by `mobile-convex`.
 const MOBILE_APPS = ["apps/mobile", "apps/mobile-convex"];
 
-// Packages not wired into any app today — removed for every pattern (weeds).
+// Packages no web/fullstack pattern wires up today (weeds). Patterns override via
+// `unusedPackages` when they genuinely consume one.
 const UNUSED_PACKAGES = ["packages/i18n", "packages/tokens"];
+
+// Frontend build tooling — dead weight in a backend-only pattern.
+const WEB_TOOLING_CATALOG = [
+  "@tailwindcss/vite",
+  "tailwindcss",
+  "@vitejs/plugin-react",
+  "vite",
+  "@orpc/client",
+  "@orpc/openapi-client",
+  "@orpc/tanstack-query",
+];
 
 // ---------------------------------------------------------------------------
 // Pattern Configurations
@@ -81,6 +109,7 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
     label: "Client-Server Elysia (apps/web-elysia + apps/server-elysia)",
     keep: ["apps/web-elysia", "apps/server-elysia"],
     mobileApp: "apps/mobile",
+    unusedPackages: UNUSED_PACKAGES,
     remove: [
       "apps/web-hono",
       "apps/server-hono",
@@ -124,6 +153,7 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
     label: "Client-Server Hono + oRPC (apps/web-hono + apps/server-hono)",
     keep: ["apps/web-hono", "apps/server-hono"],
     mobileApp: "apps/mobile",
+    unusedPackages: UNUSED_PACKAGES,
     remove: [
       "apps/web-elysia",
       "apps/server-elysia",
@@ -163,10 +193,70 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       "BETTER_AUTH_SECRET",
     ],
   },
+  "server-only-hono": {
+    label: "Backend only — Hono + oRPC API (apps/server-hono)",
+    keep: ["apps/server-hono"],
+    // No client in this pattern: both mobile variants go, and the prompt is skipped.
+    mobileApp: null,
+    // `i18n` survives here — a headless service still renders localized copy for
+    // transactional email and push notifications via its non-React `core` export.
+    unusedPackages: ["packages/tokens"],
+    remove: [
+      "apps/web-elysia",
+      "apps/server-elysia",
+      "apps/web-hono",
+      "apps/fullstack-fn-only",
+      "apps/fullstack-fn-and-convex",
+      "packages/web-ui",
+    ],
+    scriptsRemove: [
+      ...DEAD_SCRIPTS,
+      "dev:web-elysia",
+      "dev:server-elysia",
+      "dev:web-hono",
+      "dev:fullstack-fn",
+      "dev:fullstack-convex",
+      "dev:convex",
+      "dev:convex:setup",
+      "generate:convex-jwt-keys",
+    ],
+    catalogRemove: [
+      ...ELYSIA_CATALOG,
+      ...CONVEX_CATALOG,
+      ...WEB_TOOLING_CATALOG,
+      "@better-auth/expo",
+    ],
+    envSchemasRemove: [
+      "fullstackServerEnvSchema",
+      "fullstackConvexClientEnvSchema",
+      "webServerEnvSchema",
+      "webClientEnvSchema",
+    ],
+    envFilesToDelete: [
+      "packages/infra-env/src/fullstack-server.ts",
+      "packages/infra-env/src/fullstack-convex-client.ts",
+      "packages/infra-env/src/web-server.ts",
+      "packages/infra-env/src/web-client.ts",
+    ],
+    dbEnvSource: "apps/server-hono/.env",
+    // The Worker *is* the app here, so it deploys through the standard app step —
+    // there is no separate backend to append.
+    ciAppDir: "apps/server-hono",
+    ciNeedsBackend: false,
+    ciBackendDir: null,
+    ciBuildEnv: {
+      DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder",
+      BETTER_AUTH_SECRET: "placeholder-secret-for-build-validation",
+    },
+    ciDeployVars: ["CORS_ORIGIN", "BETTER_AUTH_URL"],
+    ciDeploySecrets: ["DATABASE_URL", "DATABASE_URL_DIRECT", "BETTER_AUTH_SECRET"],
+    postProcess: serverOnlyFixups,
+  },
   "fullstack-fn-only": {
     label: "Fullstack serverFn only (apps/fullstack-fn-only)",
     keep: ["apps/fullstack-fn-only"],
     mobileApp: "apps/mobile",
+    unusedPackages: UNUSED_PACKAGES,
     remove: [
       "apps/web-elysia",
       "apps/server-elysia",
@@ -219,6 +309,7 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
     label: "Fullstack serverFn + Convex (apps/fullstack-fn-and-convex)",
     keep: ["apps/fullstack-fn-and-convex"],
     mobileApp: "apps/mobile-convex",
+    unusedPackages: UNUSED_PACKAGES,
     remove: [
       "apps/web-elysia",
       "apps/server-elysia",
@@ -344,7 +435,7 @@ async function writeReadme(
 ): Promise<void> {
   const apps = [
     ...config.keep,
-    ...(keepMobile ? [config.mobileApp] : []),
+    ...(keepMobile && config.mobileApp ? [config.mobileApp] : []),
     ...(keepDocs ? ["apps/documentation"] : []),
   ]
     .map((p) => `- \`${p}\``)
@@ -423,6 +514,89 @@ async function run(cmd: string[], opts?: { silent?: boolean }): Promise<number> 
     stderr: opts?.silent ? "ignore" : "inherit",
   });
   return proc.exited;
+}
+
+// ---------------------------------------------------------------------------
+// Pattern fixups
+// ---------------------------------------------------------------------------
+
+/**
+ * Backend-only fixups for `apps/server-hono`.
+ *
+ * The template's API Worker assumes a web app in front of it: the Expo Better Auth
+ * plugin exists for the mobile client, and CORS is hardcoded to `exp://` because web
+ * traffic arrived same-origin through the web Worker's Service Binding proxy. With no
+ * client in the monorepo, both assumptions are wrong — and `@better-auth/expo` breaks
+ * `bun install` outright, since this pattern drops it from the catalog.
+ *
+ * Every consumer now calls the service cross-origin, so the allowlist has to come from
+ * `CORS_ORIGIN` and feed Better Auth's `trustedOrigins` as well.
+ */
+async function serverOnlyFixups(): Promise<void> {
+  // 1. Drop the Expo plugin dependency (its catalog entry is gone).
+  const pkgPath = "apps/server-hono/package.json";
+  const serverPkg = await readJson(pkgPath);
+  if (serverPkg.dependencies?.["@better-auth/expo"]) {
+    delete serverPkg.dependencies["@better-auth/expo"];
+    await writeJson(pkgPath, serverPkg);
+    console.log("  Removed @better-auth/expo from apps/server-hono");
+  }
+
+  // 2. Rewrite the auth instance: no Expo plugin, origins from config.
+  await writeText(
+    "apps/server-hono/src/lib/auth.ts",
+    `import { baseConfig, getCustomSession } from "@monorepo-template/infra-auth";
+import { betterAuth } from "better-auth";
+import { customSession } from "better-auth/plugins";
+import { env } from "../env";
+
+export const auth = betterAuth({
+  ...baseConfig,
+  // Every consumer of this service calls it cross-origin, so the allowlist is
+  // configuration (CORS_ORIGIN) rather than a hardcoded literal.
+  trustedOrigins: [...env.CORS_ORIGIN],
+  plugins: [...(baseConfig.plugins ?? []), customSession(getCustomSession, baseConfig)],
+});
+`,
+  );
+  console.log("  Rewrote apps/server-hono/src/lib/auth.ts");
+
+  // 3. Point CORS at the same allowlist.
+  const entryPath = "apps/server-hono/src/index.ts";
+  const entry = await Bun.file(abs(entryPath)).text();
+  const oldCors = `import { auth } from "./lib/auth";
+import { appRouter } from "./router";
+
+const app = new Hono();
+
+// CORS only needed for mobile apps — web requests come through
+// the web Worker proxy via Service Bindings (same-origin, no CORS needed)
+app.use(
+  "*",
+  cors({
+    origin: ["exp://", "mobile://", "exp://*"],`;
+  const newCors = `import { auth } from "./lib/auth";
+import { env } from "./env";
+import { appRouter } from "./router";
+
+const app = new Hono();
+
+// This service is consumed cross-origin by every other project, so CORS is the
+// real access boundary. The allowlist is configuration (CORS_ORIGIN), and
+// \`credentials: true\` forbids a wildcard origin.
+app.use(
+  "*",
+  cors({
+    origin: env.CORS_ORIGIN,`;
+
+  if (entry.includes(oldCors)) {
+    await writeText(entryPath, entry.replace(oldCors, newCors));
+    console.log("  Rewrote CORS in apps/server-hono/src/index.ts");
+  } else {
+    console.log(
+      `  WARNING: CORS block in ${entryPath} did not match — set origin: env.CORS_ORIGIN by hand`,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -594,22 +768,26 @@ async function main() {
 
   // --- Gather choices ---
 
-  const patternIdx = choose("Which web architecture pattern?", [
+  const patternIdx = choose("Which architecture pattern?", [
     "Client-Server Elysia -- Frontend (apps/web-elysia) + Elysia API (apps/server-elysia)",
     "Client-Server Hono + oRPC -- Frontend (apps/web-hono) + Hono API (apps/server-hono)",
+    "Backend only -- Hono + oRPC API (apps/server-hono), no client",
     "Fullstack serverFn only -- Single app using TanStack Start server functions",
     "Fullstack serverFn + Convex -- TanStack Start with Convex real-time backend",
   ]);
   const patternKeys: Pattern[] = [
     "client-server-elysia",
     "client-server-hono",
+    "server-only-hono",
     "fullstack-fn-only",
     "fullstack-fn-and-convex",
   ];
   const pattern = patternKeys[patternIdx];
   const config = PATTERNS[pattern];
 
-  const keepMobile = yesNo("\nKeep mobile app (Expo + React Native)?");
+  // Backend-only patterns have no mobile counterpart, so there is nothing to ask.
+  const keepMobile =
+    config.mobileApp === null ? false : yesNo("\nKeep mobile app (Expo + React Native)?");
   const keepDocs = yesNo("Keep documentation site (Astro Starlight)?");
   const keepConvex =
     pattern === "fullstack-fn-and-convex"
@@ -625,7 +803,7 @@ async function main() {
 
   // --- Confirm ---
 
-  const toDelete = [...config.remove, ...UNUSED_PACKAGES];
+  const toDelete = [...config.remove, ...config.unusedPackages];
   // Mobile: keep only this pattern's variant (if the user wants mobile); the other
   // mobile variant is always removed.
   const keepMobileConvex = keepMobile && config.mobileApp === "apps/mobile-convex";
@@ -639,7 +817,7 @@ async function main() {
 
   const toKeep = [
     ...config.keep,
-    ...(keepMobile ? [config.mobileApp] : []),
+    ...(keepMobile && config.mobileApp ? [config.mobileApp] : []),
     ...(keepDocs ? ["apps/documentation"] : []),
   ];
 
@@ -699,7 +877,7 @@ async function main() {
   }
 
   // Repoint dev:native at this pattern's mobile app (e.g. mobile-convex).
-  if (keepMobile && pkg.scripts?.["dev:native"]) {
+  if (keepMobile && config.mobileApp && pkg.scripts?.["dev:native"]) {
     const mobileName = config.mobileApp.split("/")[1];
     pkg.scripts["dev:native"] = `turbo run dev -F ${mobileName}`;
     console.log(`  Repointed dev:native -> ${mobileName}`);
@@ -748,6 +926,13 @@ async function main() {
   }
   await writeText("packages/infra-env/src/index.ts", keepExports.join("\n") + "\n");
   console.log("  Updated packages/infra-env/src/index.ts");
+
+  // --- Step 4b: Pattern-specific source fixups ---
+
+  if (config.postProcess) {
+    console.log("\n[4b/8] Applying pattern-specific fixups...");
+    await config.postProcess();
+  }
 
   // --- Step 5: Generate CI/CD workflows ---
 

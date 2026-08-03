@@ -2,7 +2,7 @@
 
 A production-ready **multi-pattern** monorepo template with DDD + Hexagonal Architecture, authentication, Cloudflare deployment configs, and a Todo CRUD example. Built with TypeScript, Bun, and Turborepo.
 
-It ships **four interchangeable architecture patterns** side by side. You pick one with `bun run customize` (see [Choose your pattern](#choose-your-pattern)), which strips the repo down to just that pattern.
+It ships **five interchangeable architecture patterns** side by side — four web stacks plus a backend-only service. You pick one with `bun run customize` (see [Choose your pattern](#choose-your-pattern)), which strips the repo down to just that pattern.
 
 ## Knowledge Documentation
 
@@ -18,6 +18,7 @@ list into the flat knowledge docs plus the assembly notes for that stack:
 | **Hono + oRPC** (default) | [stacks/fullstack-hono-orpc](https://github.com/csdev19/general-knowledge/blob/main/stacks/fullstack-hono-orpc.md)     |
 | **Elysia + Eden**         | [stacks/fullstack-elysia-eden](https://github.com/csdev19/general-knowledge/blob/main/stacks/fullstack-elysia-eden.md) |
 | **Convex** (realtime)     | [stacks/fullstack-convex](https://github.com/csdev19/general-knowledge/blob/main/stacks/fullstack-convex.md)           |
+| **Backend only**          | [stacks/service-only-hono](https://github.com/csdev19/general-knowledge/blob/main/stacks/service-only-hono.md)         |
 | **Mobile (Expo)**         | [stacks/mobile-expo](https://github.com/csdev19/general-knowledge/blob/main/stacks/mobile-expo.md)                     |
 | **Desktop (Electron)**    | [stacks/desktop-electron](https://github.com/csdev19/general-knowledge/blob/main/stacks/desktop-electron.md)           |
 
@@ -27,7 +28,7 @@ Deferred work and ideas for this project go in the **Backlog** section of the do
 
 ## Choose your pattern
 
-This is the **first thing to run on a fresh clone**. The template contains four patterns; `customize` keeps the one you choose and deletes the rest (apps, packages, scripts, catalog entries, CI, and env schemas), then optionally renames the `@monorepo-template` scope.
+This is the **first thing to run on a fresh clone**. The template contains five patterns; `customize` keeps the one you choose and deletes the rest (apps, packages, scripts, catalog entries, CI, and env schemas), then optionally renames the `@monorepo-template` scope.
 
 ```bash
 bun run customize
@@ -37,10 +38,13 @@ bun run customize
 | ------------------------ | ------------------------------ | ----------------- | ------------ |
 | **Client-Server Elysia** | `web-elysia` + `server-elysia` | Eden Treaty → API | 3003         |
 | **Client-Server Hono**   | `web-hono` + `server-hono`     | oRPC → API        | 3001         |
+| **Backend only**         | `server-hono`                  | oRPC → API        | — (no web)   |
 | **Fullstack serverFn**   | `fullstack-fn-only`            | TanStack serverFn | 3002         |
 | **Fullstack + Convex**   | `fullstack-fn-and-convex`      | serverFn + Convex | 3004         |
 
 In the **client-server** patterns the web app is a pure proxy client: it forwards all `/api/auth/*` and `/api/v1/*` requests to a separate backend Worker and never touches the database or runs Better Auth itself. In the **fullstack** patterns the TanStack Start app is the backend — its serverFns talk to the database directly.
+
+**Backend only** is for a service consumed by products in _other repositories_ — a centralized auth, billing, or notification service. There is no web app, so there is no proxy: every consumer calls it cross-origin, and `customize` rewires CORS and Better Auth's `trustedOrigins` to the `CORS_ORIGIN` allowlist accordingly. It keeps `i18n` (a headless service still renders localized email and push copy) and drops `web-ui` and `tokens`. See the [service-only-hono recipe](https://github.com/csdev19/general-knowledge/blob/main/stacks/service-only-hono.md).
 
 `customize` self-deletes when done. If you only need to rename the package scope, run `bun run rename <scope>` instead.
 

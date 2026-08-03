@@ -1,8 +1,8 @@
 # Development Rules
 
 This is a **multi-pattern** monorepo template (DDD + Hexagonal Architecture, TypeScript, Bun,
-Turborepo). It ships four interchangeable web patterns plus mobile and docs; `bun run customize`
-strips it down to the one you pick.
+Turborepo). It ships four interchangeable web patterns plus a backend-only service pattern, mobile
+and docs; `bun run customize` strips it down to the one you pick.
 
 ## Template Customization
 
@@ -31,6 +31,11 @@ here):
   [api/](https://github.com/csdev19/general-knowledge/blob/main/api/README.md) and the
   [elysia](https://github.com/csdev19/general-knowledge/blob/main/stacks/fullstack-elysia-eden.md) /
   [hono](https://github.com/csdev19/general-knowledge/blob/main/stacks/fullstack-hono-orpc.md) recipes.
+- **Backend-only pattern (no web app)** — every consumer calls the service cross-origin, so there is
+  no proxy and CORS becomes the real access boundary. The allowlist (`CORS_ORIGIN`), Better Auth's
+  `trustedOrigins`, and `sameSite: "none"` cookies must all agree. See
+  [service-only-hono](https://github.com/csdev19/general-knowledge/blob/main/stacks/service-only-hono.md)
+  and [centralized auth service](https://github.com/csdev19/general-knowledge/blob/main/api/centralized-auth-service.md).
 - **Convex (realtime pattern)** — [convex/](https://github.com/csdev19/general-knowledge/blob/main/convex/README.md)
   (client connection, Better Auth hosted in Convex, pinned SDK versions).
 - **web-ui `dist/` build strategy** — [web/web-ui-package.md](https://github.com/csdev19/general-knowledge/blob/main/web/web-ui-package.md).
