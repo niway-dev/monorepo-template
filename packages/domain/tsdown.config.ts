@@ -7,6 +7,10 @@ export default defineConfig({
     types: "src/types/index.ts",
     schemas: "src/schemas/index.ts",
     repositories: "src/repositories/index.ts",
+    // Test fixtures (builders), consumed by other packages' tests as
+    // `@monorepo-template/domain/testing`. tsdown owns the exports map via
+    // `devExports`, so a subpath only survives if it is an entry here.
+    testing: "src/testing/index.ts",
   },
 
   exports: {

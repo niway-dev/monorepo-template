@@ -19,8 +19,8 @@
     "./constants": "./src/constants/index.ts",
     "./repositories": "./src/repositories/index.ts",
     "./schemas": "./src/schemas/index.ts",
-    "./types": "./src/types/index.ts",
     "./testing": "./src/testing/index.ts",
+    "./types": "./src/types/index.ts",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -28,6 +28,7 @@
       "./constants": "./dist/constants.mjs",
       "./repositories": "./dist/repositories.mjs",
       "./schemas": "./dist/schemas.mjs",
+      "./testing": "./dist/testing.mjs",
       "./types": "./dist/types.mjs",
       "./package.json": "./package.json"
     }
