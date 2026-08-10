@@ -49,7 +49,10 @@ async function main() {
   const changed: string[] = [];
   const glob = new Bun.Glob("**/*");
 
-  for await (const relative of glob.scan(ROOT)) {
+  // `dot: true` is essential: the scope lives in dotfiles too (.env.example,
+  // .claude/*, .cursor/*). Without it the glob silently skips them and leaves
+  // stale @monorepo-template references behind.
+  for await (const relative of glob.scan({ cwd: ROOT, dot: true })) {
     const parts = relative.split("/");
     if (parts.some((p) => EXCLUDE.has(p))) continue;
 
