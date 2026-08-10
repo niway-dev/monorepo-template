@@ -720,6 +720,46 @@ app.use(
   }
 }
 
+/**
+ * Remove the Expo Better Auth plugin from a kept server app.
+ *
+ * The client-server server apps (`server-hono`, `server-elysia`) wire
+ * `@better-auth/expo` for the mobile client. When mobile is dropped, that
+ * plugin's catalog entry is removed too — so the dependency and its wiring have
+ * to go, or `bun install` fails to resolve `@better-auth/expo@catalog:` and the
+ * build never starts. (The backend-only pattern handles this in
+ * `serverOnlyFixups`; this covers dropping mobile from a client-server pattern.)
+ */
+async function stripExpoFromServerApp(appDir: string): Promise<void> {
+  const pkgPath = `${appDir}/package.json`;
+  const pkg = await readJson(pkgPath);
+  if (pkg.dependencies?.["@better-auth/expo"]) {
+    delete pkg.dependencies["@better-auth/expo"];
+    await writeJson(pkgPath, pkg);
+    console.log(`  Removed @better-auth/expo from ${appDir}`);
+  }
+
+  const authPath = `${appDir}/src/lib/auth.ts`;
+  if (!existsSync(abs(authPath))) return;
+
+  const before = await Bun.file(abs(authPath)).text();
+  const after = before
+    .replace('import { expo } from "@better-auth/expo";\n', "")
+    .replace(
+      ", customSession(getCustomSession, baseConfig), expo()]",
+      ", customSession(getCustomSession, baseConfig)]",
+    )
+    // These origins only matter for the Expo client; drop them with the plugin.
+    .replace('[...env.CORS_ORIGIN, "exp://", "mobile://", "exp://*"]', "[...env.CORS_ORIGIN]");
+
+  await writeText(authPath, after);
+  if (after.includes("@better-auth/expo")) {
+    console.log(`  WARNING: ${authPath} still references @better-auth/expo — remove it by hand`);
+  } else {
+    console.log(`  Dropped Expo plugin wiring from ${authPath}`);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // CI/CD Template Generators
 // ---------------------------------------------------------------------------
@@ -1203,6 +1243,18 @@ async function main() {
   if (config.postProcess) {
     console.log("\n[4b/8] Applying pattern-specific fixups...");
     await config.postProcess();
+  }
+
+  // --- Step 4c: Drop Expo wiring when a client-server pattern loses mobile ---
+  // Only client-server patterns keep a server-* app AND pair with mobile
+  // (mobileApp !== null). The backend-only pattern (mobileApp === null) already
+  // strips Expo in its own postProcess, so it is excluded here.
+  if (!keepMobile && config.mobileApp !== null) {
+    const serverApp = config.keep.find((k) => k.startsWith("apps/server"));
+    if (serverApp) {
+      console.log("\n[4c/8] Dropping Expo wiring (mobile removed)...");
+      await stripExpoFromServerApp(serverApp);
+    }
   }
 
   // --- Step 5: Generate CI/CD workflows ---

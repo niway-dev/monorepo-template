@@ -196,6 +196,21 @@ describe("customizer produces a clean project per pattern", () => {
         const asToken = new RegExp(`${app.replace("/", "\\/")}(?![\\w-])`);
         expect(asToken.test(arch), `architecture.md still references ${app}`).toBe(false);
       }
+
+      // 7. Dropping mobile must also strip @better-auth/expo from a kept server
+      // app — its catalog entry is gone, so a leftover reference breaks install.
+      if (!c.mobile) {
+        const serverApp = c.keep.find((a) => a.startsWith("apps/server"));
+        if (serverApp) {
+          for (const rel of ["package.json", "src/lib/auth.ts"]) {
+            const contents = readFileSync(path.join(dir, serverApp, rel), "utf-8");
+            expect(
+              contents,
+              `${serverApp}/${rel} still references @better-auth/expo`,
+            ).not.toContain("@better-auth/expo");
+          }
+        }
+      }
     }, 60_000);
   }
 });
