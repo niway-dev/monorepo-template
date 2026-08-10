@@ -480,6 +480,127 @@ DDD + Hexagonal, layer-first packages. The dependency rule is strict:
   );
 }
 
+// One-liner purpose for each shared package, used to regenerate the architecture
+// doc. Only packages that survive customization are listed.
+const PACKAGE_PURPOSE: Record<string, string> = {
+  domain: "Pure: Zod schemas, types, constants, repository interfaces (leaf, no deps)",
+  application: "Use cases (depend only on domain interfaces)",
+  "infra-db": "Drizzle schemas, repositories, mappers, Neon client",
+  "infra-auth": "Better Auth base config",
+  "infra-cloudflare": "Service Binding fetch + proxy handler (client-server patterns)",
+  "infra-env": "Zod env schemas (one per app)",
+  "convex-api": "Convex functions for the web app (Convex pattern)",
+  "convex-auth-api": "Convex functions + Better-Auth-in-Convex (mobile-convex)",
+  "web-ui": "Shared React UI (shadcn/ui, Tailwind) — exports built dist/",
+  i18n: "Localized copy for email / push via the non-React core export",
+  tokens: "Design tokens",
+  config: "Shared tsconfig",
+};
+
+const PACKAGE_ORDER = [
+  "domain",
+  "application",
+  "infra-db",
+  "infra-auth",
+  "infra-cloudflare",
+  "infra-env",
+  "convex-api",
+  "convex-auth-api",
+  "web-ui",
+  "i18n",
+  "tokens",
+  "config",
+];
+
+/** Names of the directories under a workspace folder that survived customization. */
+function survivingDirs(rel: string): Set<string> {
+  try {
+    return new Set(
+      readdirSync(abs(rel), { withFileTypes: true })
+        .filter((e) => e.isDirectory())
+        .map((e) => e.name),
+    );
+  } catch {
+    return new Set<string>();
+  }
+}
+
+/**
+ * Regenerate the AI-context docs so they describe THIS project, not the
+ * multi-pattern template. Left stale, `.claude/architecture.md` and CLAUDE.md
+ * point agents at apps and packages that no longer exist ("your next agent
+ * reads lies"). Runs after the rename, so it writes the final scope directly.
+ */
+async function regenerateAiContext(
+  config: PatternConfig,
+  toKeep: string[],
+  scope: string,
+): Promise<void> {
+  const keptPackages = survivingDirs("packages");
+  const packageList = PACKAGE_ORDER.filter((p) => keptPackages.has(p))
+    .map((p) => `- \`${p}/\` — ${PACKAGE_PURPOSE[p]}`)
+    .join("\n");
+  const appList = toKeep.map((a) => `- \`${a}\``).join("\n");
+
+  await writeText(
+    ".claude/architecture.md",
+    `# Architecture Context
+
+A **${config.label}** project (DDD + Hexagonal Architecture), scaffolded from monorepo-template.
+
+> The general architecture knowledge (DDD + hexagonal, bounded contexts, repository pattern, Result
+> types, dependency injection, schema-driven validation) lives in the
+> [general-knowledge hub](https://github.com/csdev19/general-knowledge) — start at
+> [architecture/](https://github.com/csdev19/general-knowledge/blob/main/architecture/README.md).
+> This file only maps what is specific to _this project_.
+
+## Shared packages (layer-first)
+
+${packageList}
+
+**Dependency rule (strict):** \`domain <- application <- infra-*\`; only apps wire them together.
+\`domain\` is a leaf, so importing it can never transitively pull in server code. Mobile apps import
+only \`${scope}/domain\`.
+
+## Apps
+
+${appList}
+
+See the [monorepo structure](https://github.com/csdev19/general-knowledge/blob/main/monorepos/monorepo-structure.md)
+doc in the hub for the workspace / Turbo / catalog layout.
+`,
+  );
+  console.log("  Regenerated .claude/architecture.md");
+
+  // CLAUDE.md keeps a lot of still-valid, pattern-agnostic content, so replace
+  // only the two stale bits rather than rewriting it.
+  const claudePath = "CLAUDE.md";
+  if (existsSync(abs(claudePath))) {
+    let claude = await Bun.file(abs(claudePath)).text();
+
+    const oldIntro = `This is a **multi-pattern** monorepo template (DDD + Hexagonal Architecture, TypeScript, Bun,
+Turborepo). It ships four interchangeable web patterns plus a backend-only service pattern, mobile
+and docs; \`bun run customize\` strips it down to the one you pick.`;
+    const newIntro = `This is a **${config.label}** project (DDD + Hexagonal Architecture, TypeScript, Bun,
+Turborepo), scaffolded from monorepo-template.`;
+    if (claude.includes(oldIntro)) {
+      claude = claude.replace(oldIntro, newIntro);
+    } else {
+      console.log("  WARNING: CLAUDE.md intro did not match — update it by hand");
+    }
+
+    // Drop the "Template Customization" section: its customize/rename commands
+    // self-delete during this run, so the instructions no longer apply.
+    claude = claude.replace(
+      /## Template Customization[\s\S]*?(?=\n## Knowledge lives in the hub)/,
+      "",
+    );
+
+    await writeText(claudePath, claude);
+    console.log("  Updated CLAUDE.md");
+  }
+}
+
 function choose(question: string, options: string[]): number {
   console.log(`\n${question}\n`);
   for (let i = 0; i < options.length; i++) {
@@ -1151,6 +1272,9 @@ async function main() {
   await writeReadme(config, keepMobile, keepDocs, projectName ?? "app");
   console.log("  Regenerated README.md");
 
+  // Rewrite the AI-context docs so agents don't read references to deleted apps.
+  await regenerateAiContext(config, toKeep, scope);
+
   // Clean up scripts
   removeFile("scripts/rename.ts");
   removeFile("scripts/customize.ts");
@@ -1193,8 +1317,6 @@ async function main() {
   );
 
   console.log("\n  Remaining manual steps:");
-  console.log("  - Update CLAUDE.md if needed (architecture examples)");
-  console.log("  - Update .claude/architecture.md if it references deleted apps");
   console.log("  - Commit the changes");
 
   console.log("\n  Run 'bun run dev' to start developing!\n");

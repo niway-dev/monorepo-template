@@ -187,6 +187,15 @@ describe("customizer produces a clean project per pattern", () => {
       // 5. Generated CI builds this pattern's app.
       const ci = readFileSync(path.join(dir, ".github/workflows/pr-validation.yml"), "utf-8");
       expect(ci).toContain(`working-directory: ${c.ciApp}`);
+
+      // 6. The regenerated architecture doc references no deleted app. Match the
+      // path as a whole token so "apps/mobile" does not flag "apps/mobile-convex".
+      const arch = readFileSync(path.join(dir, ".claude/architecture.md"), "utf-8");
+      for (const app of ALL_APPS) {
+        if (c.keep.includes(app)) continue;
+        const asToken = new RegExp(`${app.replace("/", "\\/")}(?![\\w-])`);
+        expect(asToken.test(arch), `architecture.md still references ${app}`).toBe(false);
+      }
     }, 60_000);
   }
 });
