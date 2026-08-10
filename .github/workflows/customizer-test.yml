@@ -41,13 +41,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Patterns that build cleanly with mobile dropped. The client-server
-        # patterns are intentionally excluded for now: dropping mobile removes
-        # @better-auth/expo from the catalog, but their server app still depends
-        # on it and wires the Expo auth plugin, so `--no-mobile` breaks install.
-        # Fixing that decoupling is tracked separately; the structural job still
-        # covers the client-server transforms here.
+        # Every pattern must build core-only (mobile + docs dropped). The
+        # client-server patterns rely on the customizer stripping the Expo auth
+        # plugin from their server app when mobile is dropped (otherwise
+        # @better-auth/expo@catalog fails to resolve).
         pattern:
+          - client-server-hono
+          - client-server-elysia
           - server-only-hono
           - fullstack-fn-only
           - fullstack-fn-and-convex
