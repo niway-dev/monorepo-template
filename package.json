@@ -32,7 +32,8 @@
       "typescript": "5.9.3",
       "convex": "^1.31.2",
       "@convex-dev/react-query": "^0.1.0",
-      "wrangler": "4.110.0"
+      "wrangler": "4.110.0",
+      "vitest": "^4.1.9"
     }
   },
   "type": "module",
@@ -47,6 +48,7 @@
     "build:no-cache": "turbo run build --force",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
+    "test:unit": "turbo run test --filter=@monorepo-template/domain --filter=@monorepo-template/application",
     "dev:native": "turbo run dev -F mobile",
     "dev:fullstack-fn": "turbo run dev -F fullstack-fn-only",
     "dev:fullstack-convex": "turbo run dev -F fullstack-fn-and-convex",
