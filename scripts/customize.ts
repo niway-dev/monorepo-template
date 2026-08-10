@@ -817,6 +817,9 @@ jobs:
       - name: Type check
         run: bun run check-types
 
+      - name: Test
+        run: bun run test
+
       - name: Build app
         working-directory: ${config.ciAppDir}
         env:

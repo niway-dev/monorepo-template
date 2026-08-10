@@ -353,6 +353,7 @@
         "@types/node": "^22.14.1",
         "tsdown": "catalog:",
         "typescript": "catalog:",
+        "vitest": "catalog:",
       },
     },
     "packages/config": {
@@ -390,6 +391,7 @@
         "@types/node": "^22.14.1",
         "tsdown": "catalog:",
         "typescript": "catalog:",
+        "vitest": "catalog:",
       },
     },
     "packages/i18n": {
@@ -523,6 +525,7 @@
     "tsdown": "0.18.4",
     "typescript": "5.9.3",
     "vite": "7.3.0",
+    "vitest": "^4.1.9",
     "wrangler": "4.110.0",
     "zod": "4.3.6",
   },
