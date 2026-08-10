@@ -800,6 +800,7 @@ interface CliArgs {
   name?: string;
   yes: boolean;
   dryRun: boolean;
+  skipVerify: boolean;
   help: boolean;
 }
 
@@ -824,6 +825,7 @@ Options:
   --docs   / --no-docs   Keep/drop the docs site (default: drop)
   --convex / --no-convex Keep/drop Convex skills (default: drop; forced on for the convex pattern)
   --dry-run              Print the plan and exit without touching anything
+  --skip-verify          Do the transforms but skip install + build + typecheck
   --yes, -y              Skip the confirmation prompt (interactive mode)
   -h, --help             Show this help
 
@@ -837,12 +839,13 @@ function fail(msg: string): never {
 }
 
 function parseArgs(argv: string[]): CliArgs {
-  const out: CliArgs = { yes: false, dryRun: false, help: false };
+  const out: CliArgs = { yes: false, dryRun: false, skipVerify: false, help: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "-h" || a === "--help") out.help = true;
     else if (a === "-y" || a === "--yes") out.yes = true;
     else if (a === "--dry-run") out.dryRun = true;
+    else if (a === "--skip-verify") out.skipVerify = true;
     else if (a === "--mobile") out.mobile = true;
     else if (a === "--no-mobile") out.mobile = false;
     else if (a === "--docs") out.docs = true;
@@ -1158,16 +1161,22 @@ async function main() {
     // directory doesn't exist
   }
 
-  // Install dependencies
-  console.log("\nInstalling dependencies...");
-  await run(["bun", "install"]);
+  // Install + verify. `--skip-verify` stops after the structural transforms —
+  // useful for fast tests and for agents that install/build on their own.
+  let buildCode = 0;
+  let typesCode = 0;
+  if (args.skipVerify) {
+    console.log("\nSkipping install + build + typecheck (--skip-verify).");
+  } else {
+    console.log("\nInstalling dependencies...");
+    await run(["bun", "install"]);
 
-  // Verify
-  console.log("\nVerifying build...");
-  const buildCode = await run(["bun", "run", "build"]);
+    console.log("\nVerifying build...");
+    buildCode = await run(["bun", "run", "build"]);
 
-  console.log("\nType checking...");
-  const typesCode = await run(["bun", "run", "check-types"]);
+    console.log("\nType checking...");
+    typesCode = await run(["bun", "run", "check-types"]);
+  }
 
   // --- Summary ---
 
@@ -1176,8 +1185,12 @@ async function main() {
   console.log("=".repeat(50));
   console.log(`\n  Pattern:  ${config.label}`);
   console.log(`  Scope:    ${scope}`);
-  console.log(`  Build:    ${buildCode === 0 ? "PASS" : "FAIL (check errors above)"}`);
-  console.log(`  Types:    ${typesCode === 0 ? "PASS" : "FAIL (check errors above)"}`);
+  console.log(
+    `  Build:    ${args.skipVerify ? "SKIPPED" : buildCode === 0 ? "PASS" : "FAIL (check errors above)"}`,
+  );
+  console.log(
+    `  Types:    ${args.skipVerify ? "SKIPPED" : typesCode === 0 ? "PASS" : "FAIL (check errors above)"}`,
+  );
 
   console.log("\n  Remaining manual steps:");
   console.log("  - Update CLAUDE.md if needed (architecture examples)");
@@ -1191,7 +1204,9 @@ async function main() {
   process.exit(buildCode !== 0 || typesCode !== 0 ? 1 : 0);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
