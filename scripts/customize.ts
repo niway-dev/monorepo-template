@@ -758,16 +758,133 @@ ${backendStep}`;
 }
 
 // ---------------------------------------------------------------------------
-// Main
+// CLI args (non-interactive mode)
 // ---------------------------------------------------------------------------
 
-async function main() {
-  console.log("\n=== Monorepo Template Customizer ===\n");
-  console.log("This will strip the template to your chosen architecture pattern,");
-  console.log("remove features you don't need, and rename the project scope.");
+const PATTERN_KEYS: Pattern[] = [
+  "client-server-elysia",
+  "client-server-hono",
+  "server-only-hono",
+  "fullstack-fn-only",
+  "fullstack-fn-and-convex",
+];
 
-  // --- Gather choices ---
+// Friendly aliases accepted by --pattern in addition to the canonical keys.
+const PATTERN_ALIASES: Record<string, Pattern> = {
+  "client-server-elysia": "client-server-elysia",
+  elysia: "client-server-elysia",
+  "client-server-hono": "client-server-hono",
+  hono: "client-server-hono",
+  "server-only-hono": "server-only-hono",
+  "server-only": "server-only-hono",
+  backend: "server-only-hono",
+  "fullstack-fn-only": "fullstack-fn-only",
+  fn: "fullstack-fn-only",
+  "fullstack-fn-and-convex": "fullstack-fn-and-convex",
+  convex: "fullstack-fn-and-convex",
+};
 
+interface Choices {
+  pattern: Pattern;
+  keepMobile: boolean;
+  keepDocs: boolean;
+  keepConvex: boolean;
+  projectName: string | null;
+}
+
+interface CliArgs {
+  pattern?: string;
+  mobile?: boolean;
+  docs?: boolean;
+  convex?: boolean;
+  name?: string;
+  yes: boolean;
+  dryRun: boolean;
+  help: boolean;
+}
+
+const HELP = `Monorepo Template Customizer
+
+Interactive:
+  bun run customize
+
+Non-interactive (for CI / agents):
+  bun run customize --pattern <p> [options]
+
+Patterns (--pattern):
+  client-server-elysia    | elysia
+  client-server-hono      | hono
+  server-only-hono        | server-only | backend
+  fullstack-fn-only       | fn
+  fullstack-fn-and-convex | convex
+
+Options:
+  --name <kebab>         Project scope (@name). Omit to skip the rename.
+  --mobile / --no-mobile Keep/drop the Expo app (default: drop)
+  --docs   / --no-docs   Keep/drop the docs site (default: drop)
+  --convex / --no-convex Keep/drop Convex skills (default: drop; forced on for the convex pattern)
+  --dry-run              Print the plan and exit without touching anything
+  --yes, -y              Skip the confirmation prompt (interactive mode)
+  -h, --help             Show this help
+
+Exit codes: 0 ok - 1 build/typecheck failed - 2 bad arguments`;
+
+/** Print a usage error to stderr and exit with the "bad arguments" code. */
+function fail(msg: string): never {
+  console.error(`Error: ${msg}`);
+  console.error("Run 'bun run customize --help' for usage.");
+  process.exit(2);
+}
+
+function parseArgs(argv: string[]): CliArgs {
+  const out: CliArgs = { yes: false, dryRun: false, help: false };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "-h" || a === "--help") out.help = true;
+    else if (a === "-y" || a === "--yes") out.yes = true;
+    else if (a === "--dry-run") out.dryRun = true;
+    else if (a === "--mobile") out.mobile = true;
+    else if (a === "--no-mobile") out.mobile = false;
+    else if (a === "--docs") out.docs = true;
+    else if (a === "--no-docs") out.docs = false;
+    else if (a === "--convex") out.convex = true;
+    else if (a === "--no-convex") out.convex = false;
+    else if (a === "--pattern") out.pattern = argv[++i];
+    else if (a.startsWith("--pattern=")) out.pattern = a.slice("--pattern=".length);
+    else if (a === "--name") out.name = argv[++i];
+    else if (a.startsWith("--name=")) out.name = a.slice("--name=".length);
+    else fail(`Unknown argument: ${a}`);
+  }
+  return out;
+}
+
+function resolvePattern(input: string): Pattern {
+  const key = PATTERN_ALIASES[input.trim().toLowerCase()];
+  if (!key) fail(`Unknown pattern: "${input}". One of: ${PATTERN_KEYS.join(", ")}`);
+  return key;
+}
+
+/** Build the choice set from CLI flags (non-interactive mode). */
+function choicesFromArgs(args: CliArgs): Choices {
+  if (!args.pattern) fail("--pattern is required in non-interactive mode.");
+  const pattern = resolvePattern(args.pattern);
+  const config = PATTERNS[pattern];
+
+  // Backend-only patterns have no mobile app, so --mobile is meaningless there.
+  if (args.mobile && config.mobileApp === null) {
+    console.error("Warning: --mobile ignored (this pattern has no mobile app).");
+  }
+  const keepMobile = config.mobileApp === null ? false : (args.mobile ?? false);
+  const keepDocs = args.docs ?? false;
+  // The Convex fullstack pattern always keeps Convex; everything else defaults off.
+  const keepConvex = pattern === "fullstack-fn-and-convex" ? true : (args.convex ?? false);
+  const projectName = args.name?.replace(/^@/, "").trim() || null;
+
+  return { pattern, keepMobile, keepDocs, keepConvex, projectName };
+}
+
+/** Gather the choice set interactively via prompts (TTY mode). */
+function choicesInteractive(): Choices {
   const patternIdx = choose("Which architecture pattern?", [
     "Client-Server Elysia -- Frontend (apps/web-elysia) + Elysia API (apps/server-elysia)",
     "Client-Server Hono + oRPC -- Frontend (apps/web-hono) + Hono API (apps/server-hono)",
@@ -775,14 +892,7 @@ async function main() {
     "Fullstack serverFn only -- Single app using TanStack Start server functions",
     "Fullstack serverFn + Convex -- TanStack Start with Convex real-time backend",
   ]);
-  const patternKeys: Pattern[] = [
-    "client-server-elysia",
-    "client-server-hono",
-    "server-only-hono",
-    "fullstack-fn-only",
-    "fullstack-fn-and-convex",
-  ];
-  const pattern = patternKeys[patternIdx];
+  const pattern = PATTERN_KEYS[patternIdx];
   const config = PATTERNS[pattern];
 
   // Backend-only patterns have no mobile counterpart, so there is nothing to ask.
@@ -798,6 +908,34 @@ async function main() {
   console.log("This replaces @monorepo-template scope everywhere.");
   const rawName = prompt("  Name (or press Enter to skip):") || null;
   const projectName = rawName?.replace(/^@/, "").trim() || null;
+
+  return { pattern, keepMobile, keepDocs, keepConvex, projectName };
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2));
+  if (args.help) {
+    console.log(HELP);
+    process.exit(0);
+  }
+
+  // Non-interactive whenever a pattern is passed; otherwise fall back to prompts.
+  const interactive = !args.pattern;
+
+  console.log("\n=== Monorepo Template Customizer ===\n");
+  console.log("This will strip the template to your chosen architecture pattern,");
+  console.log("remove features you don't need, and rename the project scope.");
+
+  // --- Gather choices ---
+
+  const { pattern, keepMobile, keepDocs, keepConvex, projectName } = interactive
+    ? choicesInteractive()
+    : choicesFromArgs(args);
+  const config = PATTERNS[pattern];
 
   const scope = projectName ? `@${projectName}` : "@monorepo-template";
 
@@ -832,9 +970,18 @@ async function main() {
   console.log(`\n  DELETE: ${toDelete.join(", ")}`);
   console.log(`  KEEP:   ${toKeep.join(", ")}`);
 
-  if (!yesNo("\nProceed?")) {
-    console.log("Aborted.");
+  if (args.dryRun) {
+    console.log("\nDry run — no changes made.");
     process.exit(0);
+  }
+
+  // In non-interactive mode there is no TTY to confirm against, so proceed
+  // directly. Interactive runs still ask, unless --yes was passed.
+  if (interactive && !args.yes) {
+    if (!yesNo("\nProceed?")) {
+      console.log("Aborted.");
+      process.exit(0);
+    }
   }
 
   console.log("\n" + "=".repeat(50));
@@ -1038,6 +1185,13 @@ async function main() {
   console.log("  - Commit the changes");
 
   console.log("\n  Run 'bun run dev' to start developing!\n");
+
+  // Surface verification failures to the caller (CI / agents) — a broken build
+  // or typecheck must not exit 0.
+  process.exit(buildCode !== 0 || typesCode !== 0 ? 1 : 0);
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
