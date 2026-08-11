@@ -248,6 +248,7 @@
         "@monorepo-template/config": "workspace:*",
         "tsdown": "catalog:",
         "typescript": "catalog:",
+        "vitest": "catalog:",
         "wrangler": "catalog:",
       },
     },

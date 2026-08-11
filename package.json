@@ -54,6 +54,8 @@
     "test": "turbo run test",
     "test:unit": "turbo run test --filter=@monorepo-template/domain --filter=@monorepo-template/application",
     "test:web": "turbo run test --filter=@monorepo-template/web-ui",
+    "test:integration": "turbo run test:integration --filter=server-hono",
+    "test:integration:ci": "turbo run test:integration:ci --filter=server-hono",
     "dev:native": "turbo run dev -F mobile",
     "dev:fullstack-fn": "turbo run dev -F fullstack-fn-only",
     "dev:fullstack-convex": "turbo run dev -F fullstack-fn-and-convex",
