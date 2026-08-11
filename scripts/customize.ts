@@ -1183,6 +1183,9 @@ async function main() {
   // Remove scripts for deleted apps
   const scriptsToRemove = [...config.scriptsRemove];
   if (!keepMobile) scriptsToRemove.push("dev:native");
+  // `test:web` filters the web-ui package; drop it when that package is gone
+  // (backend-only), or `turbo` errors on a filter that matches nothing.
+  if (toDelete.includes("packages/web-ui")) scriptsToRemove.push("test:web");
   for (const script of scriptsToRemove) {
     if (pkg.scripts?.[script]) {
       delete pkg.scripts[script];

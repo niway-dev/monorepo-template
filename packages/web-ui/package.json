@@ -26,7 +26,8 @@
     "build": "vite build",
     "build:ui": "vite build",
     "build:watch": "vite build --watch",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",
@@ -44,13 +45,20 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",
+    "@testing-library/jest-dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
     "@types/react": "^19.2.7",
     "@vitejs/plugin-react": "catalog:",
+    "jsdom": "catalog:",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plugin-dts": "^4.5.4",
-    "vite-plugin-lib-inject-css": "^2.2.2"
+    "vite-plugin-lib-inject-css": "^2.2.2",
+    "vitest": "catalog:"
   },
   "peerDependencies": {
     "react": "^19"
