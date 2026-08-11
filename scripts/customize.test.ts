@@ -211,6 +211,13 @@ describe("customizer produces a clean project per pattern", () => {
           }
         }
       }
+
+      // 8. `test:web` filters the web-ui package, so it must survive iff web-ui
+      // does — the backend-only pattern drops both.
+      const keepsWebUi = existsSync(path.join(dir, "packages/web-ui"));
+      expect(Boolean(rootPkg.scripts?.["test:web"]), "test:web vs web-ui presence").toBe(
+        keepsWebUi,
+      );
     }, 60_000);
   }
 });

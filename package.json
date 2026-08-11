@@ -33,7 +33,11 @@
       "convex": "^1.31.2",
       "@convex-dev/react-query": "^0.1.0",
       "wrangler": "4.110.0",
-      "vitest": "^4.1.9"
+      "vitest": "^4.1.9",
+      "jsdom": "^26.1.0",
+      "@testing-library/react": "^16.3.0",
+      "@testing-library/jest-dom": "^6.6.4",
+      "@testing-library/user-event": "^14.6.1"
     }
   },
   "type": "module",
@@ -49,6 +53,7 @@
     "check-types": "turbo run check-types",
     "test": "turbo run test",
     "test:unit": "turbo run test --filter=@monorepo-template/domain --filter=@monorepo-template/application",
+    "test:web": "turbo run test --filter=@monorepo-template/web-ui",
     "dev:native": "turbo run dev -F mobile",
     "dev:fullstack-fn": "turbo run dev -F fullstack-fn-only",
     "dev:fullstack-convex": "turbo run dev -F fullstack-fn-and-convex",
