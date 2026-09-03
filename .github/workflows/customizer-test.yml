@@ -51,6 +51,7 @@ jobs:
           - server-only-hono
           - fullstack-fn-only
           - fullstack-fn-and-convex
+          - desktop-local-first
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -64,5 +65,7 @@ jobs:
       # non-zero if any of those fail. `--no-mobile --no-docs` drops the Expo and
       # Astro installs so this stays about the core stack — mobile/docs pruning is
       # already covered by the structural job.
+      # `--desktop` is only meaningful for the desktop pattern (where it is forced
+      # on anyway); the other patterns build their core stack without it.
       - name: Customize + build core (${{ matrix.pattern }})
         run: bun scripts/customize.ts --pattern ${{ matrix.pattern }} --no-mobile --no-docs --name testcore --yes

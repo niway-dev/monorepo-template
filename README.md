@@ -2,7 +2,7 @@
 
 A production-ready **multi-pattern** monorepo template with DDD + Hexagonal Architecture, authentication, Cloudflare deployment configs, and a Todo CRUD example. Built with TypeScript, Bun, and Turborepo.
 
-It ships **five interchangeable architecture patterns** side by side — four web stacks plus a backend-only service. You pick one with `bun run customize` (see [Choose your pattern](#choose-your-pattern)), which strips the repo down to just that pattern.
+It ships **six interchangeable architecture patterns** side by side — four web stacks, a backend-only service, and a local-first desktop app. You pick one with `bun run customize` (see [Choose your pattern](#choose-your-pattern)), which strips the repo down to just that pattern.
 
 ## Knowledge Documentation
 
@@ -28,7 +28,7 @@ Deferred work and ideas for this project go in the **Backlog** section of the do
 
 ## Choose your pattern
 
-This is the **first thing to run on a fresh clone**. The template contains five patterns; `customize` keeps the one you choose and deletes the rest (apps, packages, scripts, catalog entries, CI, and env schemas), then optionally renames the `@monorepo-template` scope.
+This is the **first thing to run on a fresh clone**. The template contains six patterns; `customize` keeps the one you choose and deletes the rest (apps, packages, scripts, catalog entries, CI, and env schemas), then optionally renames the `@monorepo-template` scope.
 
 ```bash
 bun run customize
@@ -41,10 +41,15 @@ bun run customize
 | **Backend only**         | `server-hono`                  | oRPC → API        | — (no web)   |
 | **Fullstack serverFn**   | `fullstack-fn-only`            | TanStack serverFn | 3002         |
 | **Fullstack + Convex**   | `fullstack-fn-and-convex`      | serverFn + Convex | 3004         |
+| **Desktop local-first**  | `desktop`                      | on-device SQLite  | — (Electron) |
 
 In the **client-server** patterns the web app is a pure proxy client: it forwards all `/api/auth/*` and `/api/v1/*` requests to a separate backend Worker and never touches the database or runs Better Auth itself. In the **fullstack** patterns the TanStack Start app is the backend — its serverFns talk to the database directly.
 
 **Backend only** is for a service consumed by products in _other repositories_ — a centralized auth, billing, or notification service. There is no web app, so there is no proxy: every consumer calls it cross-origin, and `customize` rewires CORS and Better Auth's `trustedOrigins` to the `CORS_ORIGIN` allowlist accordingly. It keeps `i18n` (a headless service still renders localized email and push copy) and drops `web-ui` and `tokens`. See the [service-only-hono recipe](https://github.com/csdev19/general-knowledge/blob/main/stacks/service-only-hono.md).
+
+**Desktop local-first** is an Electron app with no server and no network calls: state lives in an on-device SQLite database opened by the main process. It is also the template's clearest demonstration of the dependency rule — its `SqliteTodoRepository` implements the very same `ITodoRepository` port that `infra-db` implements with Drizzle/Postgres, so the use cases in `application` run unchanged on both. See [`apps/desktop/README.md`](./apps/desktop/README.md).
+
+The desktop app is **also available as an add-on to any other pattern** (`customize` asks, like it does for mobile and docs) — a web stack plus a desktop client sharing `domain`, `application`, `i18n` and `tokens`.
 
 `customize` self-deletes when done. If you only need to rename the package scope, run `bun run rename <scope>` instead.
 
@@ -100,6 +105,7 @@ monorepo-template/
 │   ├── server-hono/              # Hono + oRPC API (Cloudflare Workers)
 │   ├── fullstack-fn-only/        # TanStack Start fullstack (serverFn)
 │   ├── fullstack-fn-and-convex/  # TanStack Start + Convex realtime
+│   ├── desktop/                  # Local-first Electron app (electron-vite + SQLite)
 │   ├── mobile/                   # Mobile app (Expo / React Native)
 │   └── documentation/            # Documentation site (Astro Starlight)
 │
@@ -111,6 +117,8 @@ monorepo-template/
 │   ├── infra-cloudflare/  # Worker-to-Worker proxy + Service Binding fetch (client-server)
 │   ├── infra-env/         # Zod env schemas per app type
 │   ├── web-ui/            # Shared React UI components (shadcn/ui)
+│   ├── i18n/              # Message catalogs + React provider + non-React core
+│   ├── tokens/            # Design tokens -> CSS custom properties (web + desktop)
 │   └── config/            # Shared TypeScript configuration
 ```
 
@@ -125,6 +133,7 @@ Only the apps/packages for your chosen pattern remain after `customize`.
 - `bun run dev:web-hono` / `dev:server-hono` — Hono pattern
 - `bun run dev:fullstack-fn` / `dev:fullstack-convex` — fullstack patterns
 - `bun run dev:native` — Start the Expo mobile app
+- `bun run dev:desktop` — Start the Electron desktop app
 
 ### Building
 

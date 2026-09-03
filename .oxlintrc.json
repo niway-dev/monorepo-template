@@ -147,6 +147,7 @@
     "**/worker-configuration.d.ts",
     "**/.next/**",
     "**/.astro/**",
+    "**/out/**",
     "**/.wrangler/**",
     "**/.source/**",
     "**/convex/_generated/**"

@@ -31,9 +31,23 @@ export function generateCss(prefix = "mt-"): string {
   );
 }
 
+/**
+ * Two stylesheets from one source:
+ *   tokens.css          `--mt-*`, for web-ui — shadcn declares its own
+ *                       `--background`/`--primary`, so ours must not collide.
+ *   tokens.desktop.css  unprefixed, for consumers with no shadcn in the page
+ *                       (apps/desktop). Shorter to read and to write by hand.
+ */
+export const OUTPUTS = [
+  { file: "tokens.css", prefix: "mt-" },
+  { file: "tokens.desktop.css", prefix: "" },
+] as const;
+
 if (import.meta.main) {
   const outDir = fileURLToPath(new URL("../css/", import.meta.url));
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(`${outDir}tokens.css`, generateCss());
-  console.log("Wrote css/tokens.css");
+  for (const { file, prefix } of OUTPUTS) {
+    writeFileSync(`${outDir}${file}`, generateCss(prefix));
+    console.log(`Wrote css/${file}`);
+  }
 }
