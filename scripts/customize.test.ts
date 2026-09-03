@@ -39,12 +39,14 @@ const ALL_APPS = [
   "apps/mobile",
   "apps/mobile-convex",
   "apps/documentation",
+  "apps/desktop",
 ];
 
 interface Case {
   pattern: string;
   mobile: boolean;
   docs: boolean;
+  desktop: boolean;
   /** App dirs expected to survive (independent of the customizer's own config). */
   keep: string[];
   /** The app dir the generated CI should build. */
@@ -56,6 +58,7 @@ const CASES: Case[] = [
     pattern: "client-server-hono",
     mobile: true,
     docs: true,
+    desktop: false,
     keep: ["apps/web-hono", "apps/server-hono", "apps/mobile", "apps/documentation"],
     ciApp: "apps/web-hono",
   },
@@ -63,6 +66,7 @@ const CASES: Case[] = [
     pattern: "client-server-elysia",
     mobile: false,
     docs: false,
+    desktop: false,
     keep: ["apps/web-elysia", "apps/server-elysia"],
     ciApp: "apps/web-elysia",
   },
@@ -70,6 +74,7 @@ const CASES: Case[] = [
     pattern: "server-only-hono",
     mobile: false,
     docs: false,
+    desktop: false,
     keep: ["apps/server-hono"],
     ciApp: "apps/server-hono",
   },
@@ -77,6 +82,7 @@ const CASES: Case[] = [
     pattern: "fullstack-fn-only",
     mobile: true,
     docs: false,
+    desktop: false,
     keep: ["apps/fullstack-fn-only", "apps/mobile"],
     ciApp: "apps/fullstack-fn-only",
   },
@@ -84,9 +90,29 @@ const CASES: Case[] = [
     pattern: "fullstack-fn-and-convex",
     mobile: true,
     docs: false,
+    desktop: false,
     // This pattern pairs with mobile-convex, not the plain mobile app.
     keep: ["apps/fullstack-fn-and-convex", "apps/mobile-convex"],
     ciApp: "apps/fullstack-fn-and-convex",
+  },
+  {
+    // The desktop app as an optional add-on to a web pattern: it must coexist
+    // with the web/server apps and rescue the i18n + tokens packages.
+    pattern: "client-server-hono",
+    mobile: false,
+    docs: false,
+    desktop: true,
+    keep: ["apps/web-hono", "apps/server-hono", "apps/desktop"],
+    ciApp: "apps/web-hono",
+  },
+  {
+    // The desktop-only pattern: no server, no web client, no infra-*.
+    pattern: "desktop-local-first",
+    mobile: false,
+    docs: false,
+    desktop: true,
+    keep: ["apps/desktop"],
+    ciApp: "apps/desktop",
   },
 ];
 
@@ -151,6 +177,7 @@ describe("customizer produces a clean project per pattern", () => {
         c.pattern,
         c.mobile ? "--mobile" : "--no-mobile",
         c.docs ? "--docs" : "--no-docs",
+        c.desktop ? "--desktop" : "--no-desktop",
         "--name",
         "testscope",
         "--yes",
@@ -226,6 +253,42 @@ describe("customizer produces a clean project per pattern", () => {
         Boolean(rootPkg.scripts?.["test:integration"]),
         "test:integration vs server-hono presence",
       ).toBe(keepsServerHono);
+
+      // 10. The desktop app is the only consumer of i18n and tokens, so those
+      // packages survive exactly when it does — otherwise they are weeds. The
+      // backend-only pattern is the documented exception: it keeps i18n for
+      // localized email and push copy.
+      const keepsDesktop = c.keep.includes("apps/desktop");
+      expect(existsSync(path.join(dir, "packages/tokens")), "tokens vs desktop").toBe(keepsDesktop);
+      if (c.pattern !== "server-only-hono") {
+        expect(existsSync(path.join(dir, "packages/i18n")), "i18n vs desktop").toBe(keepsDesktop);
+      }
+
+      // 11. The desktop scripts filter the `desktop` package; a leftover filter
+      // matching nothing makes turbo fail.
+      for (const script of ["dev:desktop", "test:desktop"]) {
+        expect(Boolean(rootPkg.scripts?.[script]), `${script} vs desktop presence`).toBe(
+          keepsDesktop,
+        );
+      }
+
+      // 12. The desktop workflows are committed files, not generated ones, so
+      // they have to be deleted by hand when the app goes.
+      for (const workflow of [
+        ".github/workflows/ci-desktop.yml",
+        ".github/workflows/release-desktop.yml",
+      ]) {
+        expect(existsSync(path.join(dir, workflow)), `${workflow} vs desktop presence`).toBe(
+          keepsDesktop,
+        );
+      }
+
+      // 13. A pattern with nothing to deploy to a Worker must not ship a
+      // Cloudflare deploy workflow.
+      const deployPath = path.join(dir, ".github/workflows/deploy-production.yml");
+      expect(existsSync(deployPath), "deploy-production.yml vs deployable pattern").toBe(
+        c.pattern !== "desktop-local-first",
+      );
     }, 60_000);
   }
 });

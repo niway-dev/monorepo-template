@@ -25,7 +25,8 @@ type Pattern =
   | "client-server-hono"
   | "server-only-hono"
   | "fullstack-fn-only"
-  | "fullstack-fn-and-convex";
+  | "fullstack-fn-and-convex"
+  | "desktop-local-first";
 
 interface PatternConfig {
   label: string;
@@ -53,6 +54,13 @@ interface PatternConfig {
   ciBuildEnv: Record<string, string>;
   ciDeployVars: string[];
   ciDeploySecrets: string[];
+  /**
+   * How this pattern ships. "cloudflare" generates deploy-production.yml (a
+   * Worker deploy on a push to `production`); "desktop-release" has no server to
+   * deploy — the app ships through the tag-triggered release-desktop.yml, which
+   * is a committed file rather than generated.
+   */
+  deploy: "cloudflare" | "desktop-release";
   /**
    * Source edits this pattern needs beyond deleting directories — e.g. dropping a
    * dependency whose catalog entry the pattern removes. Runs before the rename, so
@@ -86,8 +94,32 @@ const DEAD_SCRIPTS = ["dev:web", "dev:server"];
 const MOBILE_APPS = ["apps/mobile", "apps/mobile-convex"];
 
 // Packages no web/fullstack pattern wires up today (weeds). Patterns override via
-// `unusedPackages` when they genuinely consume one.
+// `unusedPackages` when they genuinely consume one. The desktop app consumes BOTH,
+// so keeping it rescues them from this list — see `survivingUnusedPackages`.
 const UNUSED_PACKAGES = ["packages/i18n", "packages/tokens"];
+
+// The Electron app. Optional in every pattern (like mobile and docs) and the whole
+// point of the `desktop-local-first` pattern.
+const DESKTOP_APP = "apps/desktop";
+
+// Committed (not generated) workflows that only make sense with the desktop app.
+const DESKTOP_WORKFLOWS = [
+  ".github/workflows/ci-desktop.yml",
+  ".github/workflows/release-desktop.yml",
+];
+
+// Root scripts that only make sense with the desktop app.
+const DESKTOP_SCRIPTS = ["dev:desktop", "test:desktop"];
+
+/**
+ * `unusedPackages` minus anything the desktop app needs. The desktop renderer
+ * imports `tokens` for its stylesheet and `i18n` for both the UI and the tray, so
+ * removing them as "weeds" would break a kept desktop app.
+ */
+function survivingUnusedPackages(config: PatternConfig, keepDesktop: boolean): string[] {
+  if (!keepDesktop) return config.unusedPackages;
+  return config.unusedPackages.filter((p) => p !== "packages/i18n" && p !== "packages/tokens");
+}
 
 // Frontend build tooling — dead weight in a backend-only pattern.
 const WEB_TOOLING_CATALOG = [
@@ -148,6 +180,7 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       "DATABASE_URL",
       "BETTER_AUTH_SECRET",
     ],
+    deploy: "cloudflare",
   },
   "client-server-hono": {
     label: "Client-Server Hono + oRPC (apps/web-hono + apps/server-hono)",
@@ -192,6 +225,7 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       "DATABASE_URL",
       "BETTER_AUTH_SECRET",
     ],
+    deploy: "cloudflare",
   },
   "server-only-hono": {
     label: "Backend only — Hono + oRPC API (apps/server-hono)",
@@ -250,6 +284,7 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
     },
     ciDeployVars: ["CORS_ORIGIN", "BETTER_AUTH_URL"],
     ciDeploySecrets: ["DATABASE_URL", "DATABASE_URL_DIRECT", "BETTER_AUTH_SECRET"],
+    deploy: "cloudflare",
     postProcess: serverOnlyFixups,
   },
   "fullstack-fn-only": {
@@ -304,6 +339,7 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       "DATABASE_URL",
       "BETTER_AUTH_SECRET",
     ],
+    deploy: "cloudflare",
   },
   "fullstack-fn-and-convex": {
     label: "Fullstack serverFn + Convex (apps/fullstack-fn-and-convex)",
@@ -358,6 +394,79 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       "JWT_PRIVATE_JWK",
       "JWT_KID",
     ],
+    deploy: "cloudflare",
+  },
+  "desktop-local-first": {
+    label: "Desktop local-first (apps/desktop)",
+    keep: [DESKTOP_APP],
+    // No web client and no server, so there is nothing for Expo to talk to.
+    mobileApp: null,
+    // The desktop app is the consumer of both: `tokens` for its stylesheet,
+    // `i18n` for the UI and the tray menu. Nothing is a weed here.
+    unusedPackages: [],
+    remove: [
+      "apps/web-elysia",
+      "apps/server-elysia",
+      "apps/web-hono",
+      "apps/server-hono",
+      "apps/fullstack-fn-only",
+      "apps/fullstack-fn-and-convex",
+      // A local-first app has no server, no database and no hosting, so every
+      // infra-* adapter goes with them. `packages/config` only ever fed those
+      // packages and the web apps their shared tsconfig; the desktop app extends
+      // @electron-toolkit/tsconfig instead, so it goes too.
+      "packages/web-ui",
+      "packages/infra-auth",
+      "packages/infra-cloudflare",
+      "packages/infra-db",
+      "packages/infra-env",
+      "packages/config",
+    ],
+    scriptsRemove: [
+      ...DEAD_SCRIPTS,
+      "dev:web-elysia",
+      "dev:server-elysia",
+      "dev:web-hono",
+      "dev:server-hono",
+      "dev:fullstack-fn",
+      "dev:fullstack-convex",
+      "dev:convex",
+      "dev:convex:setup",
+      "generate:convex-jwt-keys",
+      "test:web",
+      "test:integration",
+      "test:integration:ci",
+      // No infra-db, so nothing to push, migrate or inspect.
+      "db:push",
+      "db:studio",
+      "db:generate",
+      "db:migrate",
+    ],
+    catalogRemove: [
+      ...ELYSIA_CATALOG,
+      ...HONO_ORPC_CATALOG,
+      ...CONVEX_CATALOG,
+      // Electron brings its own React/Vite toolchain in the app's package.json,
+      // and the renderer uses CSS Modules rather than Tailwind.
+      "@tailwindcss/vite",
+      "tailwindcss",
+      "wrangler",
+      "@better-auth/expo",
+      "better-auth",
+    ],
+    // infra-env is deleted wholesale, so there are no individual schemas to prune.
+    envSchemasRemove: [],
+    envFilesToDelete: [],
+    // Nothing reads a database URL, but the field is required; it is unused
+    // because every db:* script is removed above.
+    dbEnvSource: "apps/desktop/.env",
+    ciAppDir: DESKTOP_APP,
+    ciNeedsBackend: false,
+    ciBackendDir: null,
+    ciBuildEnv: {},
+    ciDeployVars: [],
+    ciDeploySecrets: [],
+    deploy: "desktop-release",
   },
 };
 
@@ -427,19 +536,12 @@ async function writeText(rel: string, content: string): Promise<void> {
 }
 
 /** Replace the multi-pattern template README with a minimal one for the chosen pattern. */
-async function writeReadme(
-  config: PatternConfig,
-  keepMobile: boolean,
-  keepDocs: boolean,
-  name: string,
-): Promise<void> {
-  const apps = [
-    ...config.keep,
-    ...(keepMobile && config.mobileApp ? [config.mobileApp] : []),
-    ...(keepDocs ? ["apps/documentation"] : []),
-  ]
-    .map((p) => `- \`${p}\``)
-    .join("\n");
+async function writeReadme(config: PatternConfig, toKeep: string[], name: string): Promise<void> {
+  // `toKeep` is the plan main() already computed, so this can never drift from
+  // what was actually kept.
+  const apps = toKeep.map((p) => `- \`${p}\``).join("\n");
+  const packages = [...survivingDirs("packages")].sort().join(", ");
+  const hasDatabase = existsSync(abs("packages/infra-db"));
 
   await writeText(
     "README.md",
@@ -452,8 +554,9 @@ Architecture, TypeScript, Bun, and Turborepo.
 
 \`\`\`bash
 bun install
-# copy each app's .env.example -> .env (or .dev.vars) and fill it in
-bun run db:push
+# copy each app's .env.example -> .env (or .dev.vars) and fill it in${
+      hasDatabase ? "\nbun run db:push" : ""
+    }
 bun run dev
 \`\`\`
 
@@ -461,15 +564,18 @@ bun run dev
 
 ${apps}
 
-Shared packages live in \`packages/\` (domain, application, infra-*, web-ui, config).
+Shared packages live in \`packages/\`: ${packages}.
 
 ## Scripts
 
 - \`bun run dev\` — start the app(s) in development
 - \`bun run build\` — build for production
 - \`bun run check-types\` — typecheck · \`bun run test\` — tests
-- \`bun run lint\` / \`bun run format\` — lint / format
-- \`bun run db:push\` / \`db:studio\` / \`db:generate\` / \`db:migrate\` — database
+- \`bun run lint\` / \`bun run format\` — lint / format${
+      hasDatabase
+        ? "\n- `bun run db:push` / `db:studio` / `db:generate` / `db:migrate` — database"
+        : ""
+    }
 
 ## Architecture
 
@@ -492,8 +598,9 @@ const PACKAGE_PURPOSE: Record<string, string> = {
   "convex-api": "Convex functions for the web app (Convex pattern)",
   "convex-auth-api": "Convex functions + Better-Auth-in-Convex (mobile-convex)",
   "web-ui": "Shared React UI (shadcn/ui, Tailwind) — exports built dist/",
-  i18n: "Localized copy for email / push via the non-React core export",
-  tokens: "Design tokens",
+  i18n: "Message catalogs + React provider; the non-React core export serves email, push and the Electron main process",
+  tokens:
+    "Design tokens: one TS source generating the prefixed (web) and unprefixed (desktop) stylesheets",
   config: "Shared tsconfig",
 };
 
@@ -765,6 +872,8 @@ async function stripExpoFromServerApp(appDir: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 function generatePrValidation(config: PatternConfig, scope: string): string {
+  // A pattern with no build env (the desktop app needs none) must not emit a
+  // dangling `env:` key — GitHub rejects the empty mapping.
   const envLines = Object.entries(config.ciBuildEnv)
     .map(([k, v]) => `          ${k}: ${v}`)
     .join("\n");
@@ -822,9 +931,7 @@ jobs:
 
       - name: Build app
         working-directory: ${config.ciAppDir}
-        env:
-${envLines}
-        run: bun run build
+${envLines ? `        env:\n${envLines}\n` : ""}        run: bun run build
 ${backendStep}`;
 }
 
@@ -931,6 +1038,7 @@ const PATTERN_KEYS: Pattern[] = [
   "server-only-hono",
   "fullstack-fn-only",
   "fullstack-fn-and-convex",
+  "desktop-local-first",
 ];
 
 // Friendly aliases accepted by --pattern in addition to the canonical keys.
@@ -946,6 +1054,8 @@ const PATTERN_ALIASES: Record<string, Pattern> = {
   fn: "fullstack-fn-only",
   "fullstack-fn-and-convex": "fullstack-fn-and-convex",
   convex: "fullstack-fn-and-convex",
+  "desktop-local-first": "desktop-local-first",
+  desktop: "desktop-local-first",
 };
 
 interface Choices {
@@ -953,6 +1063,7 @@ interface Choices {
   keepMobile: boolean;
   keepDocs: boolean;
   keepConvex: boolean;
+  keepDesktop: boolean;
   projectName: string | null;
 }
 
@@ -961,6 +1072,7 @@ interface CliArgs {
   mobile?: boolean;
   docs?: boolean;
   convex?: boolean;
+  desktop?: boolean;
   name?: string;
   yes: boolean;
   dryRun: boolean;
@@ -982,12 +1094,17 @@ Patterns (--pattern):
   server-only-hono        | server-only | backend
   fullstack-fn-only       | fn
   fullstack-fn-and-convex | convex
+  desktop-local-first     | desktop
 
 Options:
   --name <kebab>         Project scope (@name). Omit to skip the rename.
   --mobile / --no-mobile Keep/drop the Expo app (default: drop)
   --docs   / --no-docs   Keep/drop the docs site (default: drop)
   --convex / --no-convex Keep/drop Convex skills (default: drop; forced on for the convex pattern)
+  --desktop / --no-desktop
+                         Keep/drop the Electron app (default: drop; forced on for
+                         the desktop pattern). Keeping it also keeps the i18n and
+                         tokens packages, which it consumes.
   --dry-run              Print the plan and exit without touching anything
   --skip-verify          Do the transforms but skip install + build + typecheck
   --yes, -y              Skip the confirmation prompt (interactive mode)
@@ -1016,6 +1133,8 @@ function parseArgs(argv: string[]): CliArgs {
     else if (a === "--no-docs") out.docs = false;
     else if (a === "--convex") out.convex = true;
     else if (a === "--no-convex") out.convex = false;
+    else if (a === "--desktop") out.desktop = true;
+    else if (a === "--no-desktop") out.desktop = false;
     else if (a === "--pattern") out.pattern = argv[++i];
     else if (a.startsWith("--pattern=")) out.pattern = a.slice("--pattern=".length);
     else if (a === "--name") out.name = argv[++i];
@@ -1045,9 +1164,14 @@ function choicesFromArgs(args: CliArgs): Choices {
   const keepDocs = args.docs ?? false;
   // The Convex fullstack pattern always keeps Convex; everything else defaults off.
   const keepConvex = pattern === "fullstack-fn-and-convex" ? true : (args.convex ?? false);
+  // The desktop pattern IS the desktop app; --no-desktop would leave nothing.
+  if (args.desktop === false && pattern === "desktop-local-first") {
+    console.error("Warning: --no-desktop ignored (this pattern is the desktop app).");
+  }
+  const keepDesktop = pattern === "desktop-local-first" ? true : (args.desktop ?? false);
   const projectName = args.name?.replace(/^@/, "").trim() || null;
 
-  return { pattern, keepMobile, keepDocs, keepConvex, projectName };
+  return { pattern, keepMobile, keepDocs, keepConvex, keepDesktop, projectName };
 }
 
 /** Gather the choice set interactively via prompts (TTY mode). */
@@ -1058,6 +1182,7 @@ function choicesInteractive(): Choices {
     "Backend only -- Hono + oRPC API (apps/server-hono), no client",
     "Fullstack serverFn only -- Single app using TanStack Start server functions",
     "Fullstack serverFn + Convex -- TanStack Start with Convex real-time backend",
+    "Desktop local-first -- Electron app (apps/desktop), no server, no web client",
   ]);
   const pattern = PATTERN_KEYS[patternIdx];
   const config = PATTERNS[pattern];
@@ -1070,13 +1195,16 @@ function choicesInteractive(): Choices {
     pattern === "fullstack-fn-and-convex"
       ? true
       : yesNo("Keep Convex skills (for future integration)?");
+  // The desktop pattern is nothing but the desktop app, so there is nothing to ask.
+  const keepDesktop =
+    pattern === "desktop-local-first" ? true : yesNo("Keep desktop app (Electron, local-first)?");
 
   console.log('\nProject name (kebab-case, e.g. "my-app").');
   console.log("This replaces @monorepo-template scope everywhere.");
   const rawName = prompt("  Name (or press Enter to skip):") || null;
   const projectName = rawName?.replace(/^@/, "").trim() || null;
 
-  return { pattern, keepMobile, keepDocs, keepConvex, projectName };
+  return { pattern, keepMobile, keepDocs, keepConvex, keepDesktop, projectName };
 }
 
 // ---------------------------------------------------------------------------
@@ -1099,7 +1227,7 @@ async function main() {
 
   // --- Gather choices ---
 
-  const { pattern, keepMobile, keepDocs, keepConvex, projectName } = interactive
+  const { pattern, keepMobile, keepDocs, keepConvex, keepDesktop, projectName } = interactive
     ? choicesInteractive()
     : choicesFromArgs(args);
   const config = PATTERNS[pattern];
@@ -1108,7 +1236,8 @@ async function main() {
 
   // --- Confirm ---
 
-  const toDelete = [...config.remove, ...config.unusedPackages];
+  const toDelete = [...config.remove, ...survivingUnusedPackages(config, keepDesktop)];
+  if (!keepDesktop) toDelete.push(DESKTOP_APP);
   // Mobile: keep only this pattern's variant (if the user wants mobile); the other
   // mobile variant is always removed.
   const keepMobileConvex = keepMobile && config.mobileApp === "apps/mobile-convex";
@@ -1124,6 +1253,8 @@ async function main() {
     ...config.keep,
     ...(keepMobile && config.mobileApp ? [config.mobileApp] : []),
     ...(keepDocs ? ["apps/documentation"] : []),
+    // The desktop pattern already lists it in `keep`; don't list it twice.
+    ...(keepDesktop && !config.keep.includes(DESKTOP_APP) ? [DESKTOP_APP] : []),
   ];
 
   console.log("\n" + "=".repeat(50));
@@ -1133,6 +1264,7 @@ async function main() {
   console.log(`  Mobile:   ${keepMobile ? "keep" : "remove"}`);
   console.log(`  Docs:     ${keepDocs ? "keep" : "remove"}`);
   console.log(`  Convex:   ${keepConvex ? "keep" : "remove"}`);
+  console.log(`  Desktop:  ${keepDesktop ? "keep" : "remove"}`);
   console.log(`  Scope:    ${projectName ? `@monorepo-template -> ${scope}` : "no rename"}`);
   console.log(`\n  DELETE: ${toDelete.join(", ")}`);
   console.log(`  KEEP:   ${toKeep.join(", ")}`);
@@ -1191,6 +1323,8 @@ async function main() {
   if (toDelete.includes("apps/server-hono")) {
     scriptsToRemove.push("test:integration", "test:integration:ci");
   }
+  // The desktop scripts filter `desktop`; turbo errors on a filter matching nothing.
+  if (!keepDesktop) scriptsToRemove.push(...DESKTOP_SCRIPTS);
   for (const script of scriptsToRemove) {
     if (pkg.scripts?.[script]) {
       delete pkg.scripts[script];
@@ -1232,6 +1366,9 @@ async function main() {
   // --- Step 4: Clean up infra-env ---
 
   console.log("\n[4/8] Cleaning up infra-env schemas...");
+  // A pattern can delete infra-env wholesale (desktop-local-first has no env to
+  // validate); rewriting its index.ts would then recreate the package.
+  const infraEnvSurvives = !toDelete.includes("packages/infra-env");
   for (const schema of config.envSchemasRemove) {
     const info = ENV_SCHEMA_MAP[schema];
     if (info && removeFile(info.file)) {
@@ -1246,8 +1383,12 @@ async function main() {
       keepExports.push(info.exportLine);
     }
   }
-  await writeText("packages/infra-env/src/index.ts", keepExports.join("\n") + "\n");
-  console.log("  Updated packages/infra-env/src/index.ts");
+  if (infraEnvSurvives) {
+    await writeText("packages/infra-env/src/index.ts", keepExports.join("\n") + "\n");
+    console.log("  Updated packages/infra-env/src/index.ts");
+  } else {
+    console.log("  Skipped (infra-env is not part of this pattern)");
+  }
 
   // --- Step 4b: Pattern-specific source fixups ---
 
@@ -1273,11 +1414,27 @@ async function main() {
   console.log("\n[5/8] Generating CI/CD workflows...");
   await writeText(".github/workflows/pr-validation.yml", generatePrValidation(config, scope));
   console.log("  Generated .github/workflows/pr-validation.yml");
-  await writeText(
-    ".github/workflows/deploy-production.yml",
-    generateDeployProduction(config, scope),
-  );
-  console.log("  Generated .github/workflows/deploy-production.yml");
+
+  if (config.deploy === "cloudflare") {
+    await writeText(
+      ".github/workflows/deploy-production.yml",
+      generateDeployProduction(config, scope),
+    );
+    console.log("  Generated .github/workflows/deploy-production.yml");
+  } else {
+    // Nothing to deploy to a Worker: the desktop app ships from a `desktop-v*`
+    // tag through the committed release-desktop.yml.
+    if (removeFile(".github/workflows/deploy-production.yml")) {
+      console.log("  Removed .github/workflows/deploy-production.yml (nothing to deploy)");
+    }
+  }
+
+  // The desktop workflows are committed, not generated — drop them when the app goes.
+  if (!keepDesktop) {
+    for (const workflow of DESKTOP_WORKFLOWS) {
+      if (removeFile(workflow)) console.log(`  Removed ${workflow}`);
+    }
+  }
 
   // --- Step 6: Clean lint configs ---
 
@@ -1332,7 +1489,7 @@ async function main() {
   // Regenerate a minimal README for the chosen pattern — the template's
   // multi-pattern README (with the "Choose your pattern" flow) no longer
   // applies once customized.
-  await writeReadme(config, keepMobile, keepDocs, projectName ?? "app");
+  await writeReadme(config, toKeep, projectName ?? "app");
   console.log("  Regenerated README.md");
 
   // Rewrite the AI-context docs so agents don't read references to deleted apps.
