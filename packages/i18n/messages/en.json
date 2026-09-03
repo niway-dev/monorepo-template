@@ -34,5 +34,20 @@
     "label": "Language",
     "en": "English",
     "es": "Spanish"
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Preferences are stored on this device.",
+    "languageHint": "Applies to the window and the tray menu.",
+    "theme": "Theme",
+    "themeHint": "System follows your operating system.",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "storageHint": "Saved locally — nothing leaves this device."
+  },
+  "tray": {
+    "show": "Show window",
+    "quit": "Quit"
   }
 }
