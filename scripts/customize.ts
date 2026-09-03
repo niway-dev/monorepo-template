@@ -108,8 +108,10 @@ const DESKTOP_WORKFLOWS = [
   ".github/workflows/release-desktop.yml",
 ];
 
-// Root scripts that only make sense with the desktop app.
-const DESKTOP_SCRIPTS = ["dev:desktop", "test:desktop"];
+// Root scripts that only make sense with the desktop app. `postinstall` fetches the
+// Electron binary (electron ships with no postinstall of its own, and Bun does not run
+// a workspace package's postinstall automatically) — see the CLAUDE.md gotcha.
+const DESKTOP_SCRIPTS = ["dev:desktop", "test:desktop", "postinstall"];
 
 /**
  * `unusedPackages` minus anything the desktop app needs. The desktop renderer

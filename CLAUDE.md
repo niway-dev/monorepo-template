@@ -69,6 +69,16 @@ here):
   make Node `require` a `.ts` file at runtime. Keeping them in `devDependencies` bundles them into
   `out/` and keeps the source out of the shipped asar. Full reasoning in
   `docs/adr/0001-desktop-app.md`.
+- **Electron's binary needs an explicit install step (sharp gotcha):** `electron@44.x` ships with no
+  `postinstall` of its own — installing the npm package only gets the JS wrapper, not the ~150-200MB
+  native binary, so `node_modules/electron/path.txt` is missing and `electron-vite dev` fails with
+  `Error: Electron uninstall`. Bun also does not run a workspace package's own `postinstall`
+  automatically (only the root project's). Both gaps are closed together: the root `postinstall`
+  script runs `turbo run postinstall -F desktop` (added/removed by `customize.ts` alongside
+  `dev:desktop`/`test:desktop` — see `DESKTOP_SCRIPTS`), which calls `apps/desktop`'s own
+  `postinstall`: `install-electron && electron-builder install-app-deps` — the first command fetches
+  the binary, the second rebuilds native modules for the local arch. Keep both scripts together if
+  either changes.
 - **web-ui needs `dist/`:** `@monorepo-template/web-ui` exports point to built files, and `dist/` is
   NOT committed — a fresh clone has none. Run `bun run build --filter='@monorepo-template/*'` before
   `bun run check-types`, or the apps that import web-ui fail with "Cannot find module". CI already

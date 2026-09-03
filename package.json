@@ -43,6 +43,7 @@
   "type": "module",
   "scripts": {
     "prepare": "husky",
+    "postinstall": "turbo run postinstall -F desktop",
     "lint": "oxlint",
     "format": "oxfmt --write .",
     "format:tracked": "git ls-files | grep -E '\\.(ts|tsx|js|jsx|json|jsonc|md|mdx)$' | xargs oxfmt --write",
