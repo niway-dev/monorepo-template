@@ -22,6 +22,9 @@ const EXCLUDE = new Set([
   "bun.lockb",
   ".turbo",
   "dist",
+  // electron-vite's build output. Without this, running rename after a desktop
+  // build rewrites the bundled JS in place.
+  "out",
   ".output",
   ".wrangler",
   ".next",

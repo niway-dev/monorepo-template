@@ -9,7 +9,7 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", "out/**"]
     },
     "lint": {
       "dependsOn": ["transit"]
@@ -50,9 +50,6 @@
     "db:generate": {
       "cache": false,
       "env": ["DATABASE_URL"]
-    },
-    "test": {
-      "dependsOn": ["transit"]
     }
   }
 }
