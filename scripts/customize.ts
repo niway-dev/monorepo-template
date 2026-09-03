@@ -1186,6 +1186,11 @@ async function main() {
   // `test:web` filters the web-ui package; drop it when that package is gone
   // (backend-only), or `turbo` errors on a filter that matches nothing.
   if (toDelete.includes("packages/web-ui")) scriptsToRemove.push("test:web");
+  // The integration suite targets the Hono API app; drop its scripts when that
+  // app is not part of the chosen pattern.
+  if (toDelete.includes("apps/server-hono")) {
+    scriptsToRemove.push("test:integration", "test:integration:ci");
+  }
   for (const script of scriptsToRemove) {
     if (pkg.scripts?.[script]) {
       delete pkg.scripts[script];

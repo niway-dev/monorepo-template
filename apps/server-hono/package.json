@@ -8,7 +8,9 @@
     "check-types": "tsc -b",
     "dev": "wrangler dev --port 3000 --inspector-port 9229",
     "deploy": "wrangler deploy",
-    "cf:gen-types": "wrangler types --env-interface CloudflareBindings"
+    "cf:gen-types": "wrangler types --env-interface CloudflareBindings",
+    "test:integration": "dotenvx run -f .env.test -- vitest run --config vitest.integration.config.ts",
+    "test:integration:ci": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@better-auth/expo": "catalog:",
@@ -29,6 +31,7 @@
     "@monorepo-template/config": "workspace:*",
     "tsdown": "catalog:",
     "typescript": "catalog:",
+    "vitest": "catalog:",
     "wrangler": "catalog:"
   }
 }

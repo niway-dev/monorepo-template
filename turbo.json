@@ -20,6 +20,16 @@
     "test": {
       "dependsOn": ["transit"]
     },
+    "test:integration": {
+      "dependsOn": ["transit"],
+      "cache": false,
+      "env": ["DATABASE_URL", "BETTER_AUTH_SECRET", "CORS_ORIGIN"]
+    },
+    "test:integration:ci": {
+      "dependsOn": ["transit"],
+      "cache": false,
+      "env": ["DATABASE_URL", "BETTER_AUTH_SECRET", "CORS_ORIGIN"]
+    },
     "dev": {
       "cache": false,
       "persistent": true

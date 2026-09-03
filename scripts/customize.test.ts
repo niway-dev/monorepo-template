@@ -218,6 +218,14 @@ describe("customizer produces a clean project per pattern", () => {
       expect(Boolean(rootPkg.scripts?.["test:web"]), "test:web vs web-ui presence").toBe(
         keepsWebUi,
       );
+
+      // 9. The integration scripts target the Hono API app, so they survive iff
+      // apps/server-hono does.
+      const keepsServerHono = existsSync(path.join(dir, "apps/server-hono"));
+      expect(
+        Boolean(rootPkg.scripts?.["test:integration"]),
+        "test:integration vs server-hono presence",
+      ).toBe(keepsServerHono);
     }, 60_000);
   }
 });
