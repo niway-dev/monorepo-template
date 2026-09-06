@@ -55,3 +55,6 @@ pr-summaries/
 workspace-temp/
 # electron-vite build output (apps/desktop)
 out/
+
+# lefthook per-developer overrides (never committed)
+lefthook-local.yml
