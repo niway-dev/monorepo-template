@@ -49,9 +49,13 @@ here):
 - `infra-*` never imports from `application`
 - Mobile apps (`apps/mobile/`, `apps/mobile-convex/`) only import `@monorepo-template/domain`
   (and, for `mobile-convex`, `@monorepo-template/convex-auth-api`)
-- The desktop app (`apps/desktop/`) is the second adapter of `ITodoRepository`: its main process
-  implements the port over on-device SQLite and runs the same `application` use cases the server
-  does. Its renderer never touches Node — everything crosses the preload bridge.
+- The desktop apps are the other adapters of `ITodoRepository`, and both run the same
+  `application` use cases the server does:
+  - `apps/desktop-electron/` — the main process implements the port over on-device SQLite. Its
+    renderer never touches Node; everything crosses the preload bridge.
+  - `apps/desktop-tauri/` — the use cases run in the webview over `TauriTodoRepository`, whose
+    every method is one typed Rust command; the Rust core owns SQLite and the webview never sends
+    SQL. See `docs/adr/0002-desktop-tauri-alongside-electron.md`.
 
 ## Project-specific rules
 
@@ -68,17 +72,26 @@ here):
   `@monorepo-template/*` packages export raw TypeScript with no `dist`, so externalizing them would
   make Node `require` a `.ts` file at runtime. Keeping them in `devDependencies` bundles them into
   `out/` and keeps the source out of the shipped asar. Full reasoning in
-  `docs/adr/0001-desktop-app.md`.
+  `docs/adr/0001-desktop-app.md`. (Electron only — the Tauri renderer is a plain Vite bundle.)
 - **Electron's binary needs an explicit install step (sharp gotcha):** `electron@44.x` ships with no
   `postinstall` of its own — installing the npm package only gets the JS wrapper, not the ~150-200MB
   native binary, so `node_modules/electron/path.txt` is missing and `electron-vite dev` fails with
   `Error: Electron uninstall`. Bun also does not run a workspace package's own `postinstall`
   automatically (only the root project's). Both gaps are closed together: the root `postinstall`
-  script runs `turbo run postinstall -F desktop` (added/removed by `customize.ts` alongside
-  `dev:desktop`/`test:desktop` — see `DESKTOP_SCRIPTS`), which calls `apps/desktop`'s own
+  script runs `turbo run postinstall -F desktop-electron` (added/removed by `customize.ts` alongside
+  `dev:desktop-electron`/`test:desktop-electron` — see `DESKTOP_APPS`), which calls
+  `apps/desktop-electron`'s own
   `postinstall`: `install-electron && electron-builder install-app-deps` — the first command fetches
   the binary, the second rebuilds native modules for the local arch. Keep both scripts together if
   either changes.
+- **Tauri bindings are generated and committed:** `apps/desktop-tauri/src/bindings.ts` comes from
+  the Rust command signatures (tauri-specta). After changing a command, run `bun run bindings` in
+  that app and commit the result; `ci-desktop-tauri.yml` fails on a stale file. The tauri-specta
+  crates are release candidates pinned with `=` — bump all three together.
+- **Desktop renderers need one React (sharp gotcha):** workspace packages (e.g. `i18n` via
+  `use-intl`) can resolve a different React copy than the app. Both desktop apps dedupe
+  `react`/`react-dom` in their Vite and Vitest configs; without it the window renders blank with
+  `dispatcher.useContext` on null.
 - **web-ui needs `dist/`:** `@monorepo-template/web-ui` exports point to built files, and `dist/` is
   NOT committed — a fresh clone has none. Run `bun run build --filter='@monorepo-template/*'` before
   `bun run check-types`, or the apps that import web-ui fail with "Cannot find module". CI already
