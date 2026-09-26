@@ -39,14 +39,39 @@ const ALL_APPS = [
   "apps/mobile",
   "apps/mobile-convex",
   "apps/documentation",
-  "apps/desktop",
+  "apps/desktop-electron",
+  "apps/desktop-tauri",
 ];
+
+type DesktopRuntime = "electron" | "tauri";
+
+// What each desktop app owns outside its own directory. Hardcoded on purpose:
+// this is the independent oracle, not the customizer's DESKTOP_APPS map.
+const DESKTOP: Record<DesktopRuntime, { app: string; scripts: string[]; workflows: string[] }> = {
+  electron: {
+    app: "apps/desktop-electron",
+    scripts: ["dev:desktop-electron", "test:desktop-electron", "postinstall"],
+    workflows: [
+      ".github/workflows/ci-desktop-electron.yml",
+      ".github/workflows/release-desktop-electron.yml",
+    ],
+  },
+  tauri: {
+    app: "apps/desktop-tauri",
+    scripts: ["dev:desktop-tauri", "test:desktop-tauri", "bundle:desktop-tauri"],
+    workflows: [
+      ".github/workflows/ci-desktop-tauri.yml",
+      ".github/workflows/release-desktop-tauri.yml",
+    ],
+  },
+};
 
 interface Case {
   pattern: string;
   mobile: boolean;
   docs: boolean;
-  desktop: boolean;
+  /** The desktop runtime to keep, or `null` for none. */
+  desktop: DesktopRuntime | null;
   /** App dirs expected to survive (independent of the customizer's own config). */
   keep: string[];
   /** The app dir the generated CI should build. */
@@ -58,7 +83,7 @@ const CASES: Case[] = [
     pattern: "client-server-hono",
     mobile: true,
     docs: true,
-    desktop: false,
+    desktop: null,
     keep: ["apps/web-hono", "apps/server-hono", "apps/mobile", "apps/documentation"],
     ciApp: "apps/web-hono",
   },
@@ -66,7 +91,7 @@ const CASES: Case[] = [
     pattern: "client-server-elysia",
     mobile: false,
     docs: false,
-    desktop: false,
+    desktop: null,
     keep: ["apps/web-elysia", "apps/server-elysia"],
     ciApp: "apps/web-elysia",
   },
@@ -74,7 +99,7 @@ const CASES: Case[] = [
     pattern: "server-only-hono",
     mobile: false,
     docs: false,
-    desktop: false,
+    desktop: null,
     keep: ["apps/server-hono"],
     ciApp: "apps/server-hono",
   },
@@ -82,7 +107,7 @@ const CASES: Case[] = [
     pattern: "fullstack-fn-only",
     mobile: true,
     docs: false,
-    desktop: false,
+    desktop: null,
     keep: ["apps/fullstack-fn-only", "apps/mobile"],
     ciApp: "apps/fullstack-fn-only",
   },
@@ -90,7 +115,7 @@ const CASES: Case[] = [
     pattern: "fullstack-fn-and-convex",
     mobile: true,
     docs: false,
-    desktop: false,
+    desktop: null,
     // This pattern pairs with mobile-convex, not the plain mobile app.
     keep: ["apps/fullstack-fn-and-convex", "apps/mobile-convex"],
     ciApp: "apps/fullstack-fn-and-convex",
@@ -101,18 +126,44 @@ const CASES: Case[] = [
     pattern: "client-server-hono",
     mobile: false,
     docs: false,
-    desktop: true,
-    keep: ["apps/web-hono", "apps/server-hono", "apps/desktop"],
+    desktop: "electron",
+    keep: ["apps/web-hono", "apps/server-hono", "apps/desktop-electron"],
     ciApp: "apps/web-hono",
+  },
+  {
+    pattern: "client-server-hono",
+    mobile: false,
+    docs: false,
+    desktop: "tauri",
+    keep: ["apps/web-hono", "apps/server-hono", "apps/desktop-tauri"],
+    ciApp: "apps/web-hono",
+  },
+  {
+    // Backend-only drops the frontend catalog (vite, the React plugin); a kept
+    // desktop app still needs those entries.
+    pattern: "server-only-hono",
+    mobile: false,
+    docs: false,
+    desktop: "tauri",
+    keep: ["apps/server-hono", "apps/desktop-tauri"],
+    ciApp: "apps/server-hono",
   },
   {
     // The desktop-only pattern: no server, no web client, no infra-*.
     pattern: "desktop-local-first",
     mobile: false,
     docs: false,
-    desktop: true,
-    keep: ["apps/desktop"],
-    ciApp: "apps/desktop",
+    desktop: "electron",
+    keep: ["apps/desktop-electron"],
+    ciApp: "apps/desktop-electron",
+  },
+  {
+    pattern: "desktop-local-first",
+    mobile: false,
+    docs: false,
+    desktop: "tauri",
+    keep: ["apps/desktop-tauri"],
+    ciApp: "apps/desktop-tauri",
   },
 ];
 
@@ -168,7 +219,8 @@ function allFiles(dir: string): string[] {
 
 describe("customizer produces a clean project per pattern", () => {
   for (const c of CASES) {
-    test(`${c.pattern}${c.mobile ? " +mobile" : ""}${c.docs ? " +docs" : ""}`, () => {
+    const extras = [c.mobile && "+mobile", c.docs && "+docs", c.desktop && `+${c.desktop}`];
+    test([c.pattern, ...extras.filter(Boolean)].join(" "), () => {
       const dir = materialize();
 
       const args = [
@@ -177,7 +229,7 @@ describe("customizer produces a clean project per pattern", () => {
         c.pattern,
         c.mobile ? "--mobile" : "--no-mobile",
         c.docs ? "--docs" : "--no-docs",
-        c.desktop ? "--desktop" : "--no-desktop",
+        c.desktop ? `--desktop=${c.desktop}` : "--no-desktop",
         "--name",
         "testscope",
         "--yes",
@@ -254,33 +306,49 @@ describe("customizer produces a clean project per pattern", () => {
         "test:integration vs server-hono presence",
       ).toBe(keepsServerHono);
 
-      // 10. The desktop app is the only consumer of i18n and tokens, so those
-      // packages survive exactly when it does — otherwise they are weeds. The
+      // 10. The desktop apps are the only consumers of i18n and tokens, so those
+      // packages survive exactly when one does — otherwise they are weeds. The
       // backend-only pattern is the documented exception: it keeps i18n for
       // localized email and push copy.
-      const keepsDesktop = c.keep.includes("apps/desktop");
+      const keepsDesktop = c.desktop !== null;
       expect(existsSync(path.join(dir, "packages/tokens")), "tokens vs desktop").toBe(keepsDesktop);
       if (c.pattern !== "server-only-hono") {
         expect(existsSync(path.join(dir, "packages/i18n")), "i18n vs desktop").toBe(keepsDesktop);
       }
 
-      // 11. The desktop scripts filter the `desktop` package; a leftover filter
-      // matching nothing makes turbo fail.
-      for (const script of ["dev:desktop", "test:desktop"]) {
-        expect(Boolean(rootPkg.scripts?.[script]), `${script} vs desktop presence`).toBe(
-          keepsDesktop,
-        );
+      for (const runtime of Object.keys(DESKTOP) as DesktopRuntime[]) {
+        const kept = c.desktop === runtime;
+        const { scripts, workflows } = DESKTOP[runtime];
+
+        // 11. Each desktop app's scripts filter that app; a leftover filter
+        // matching nothing makes turbo fail.
+        for (const script of scripts) {
+          expect(Boolean(rootPkg.scripts?.[script]), `${script} vs ${runtime} presence`).toBe(kept);
+        }
+
+        // 12. The desktop workflows are committed files, not generated ones, so
+        // they have to be deleted by hand when their app goes.
+        for (const workflow of workflows) {
+          expect(existsSync(path.join(dir, workflow)), `${workflow} vs ${runtime} presence`).toBe(
+            kept,
+          );
+        }
       }
 
-      // 12. The desktop workflows are committed files, not generated ones, so
-      // they have to be deleted by hand when the app goes.
-      for (const workflow of [
-        ".github/workflows/ci-desktop.yml",
-        ".github/workflows/release-desktop.yml",
-      ]) {
-        expect(existsSync(path.join(dir, workflow)), `${workflow} vs desktop presence`).toBe(
-          keepsDesktop,
+      // 12b. A kept desktop app keeps every catalog entry it references, even
+      // when the pattern would otherwise drop it (backend-only drops vite).
+      if (c.desktop) {
+        const appPkg = JSON.parse(
+          readFileSync(path.join(dir, DESKTOP[c.desktop].app, "package.json"), "utf-8"),
         );
+        const deps = { ...appPkg.dependencies, ...appPkg.devDependencies } as Record<
+          string,
+          string
+        >;
+        for (const [name, version] of Object.entries(deps)) {
+          if (!version.startsWith("catalog:")) continue;
+          expect(rootPkg.workspaces.catalog[name], `catalog entry ${name}`).toBeDefined();
+        }
       }
 
       // 13. A pattern with nothing to deploy to a Worker must not ship a
