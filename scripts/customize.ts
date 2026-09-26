@@ -57,8 +57,8 @@ interface PatternConfig {
   /**
    * How this pattern ships. "cloudflare" generates deploy-production.yml (a
    * Worker deploy on a push to `production`); "desktop-release" has no server to
-   * deploy — the app ships through the tag-triggered release-desktop.yml, which
-   * is a committed file rather than generated.
+   * deploy — the app ships through its tag-triggered release-desktop-*.yml,
+   * which is a committed file rather than generated.
    */
   deploy: "cloudflare" | "desktop-release";
   /**
@@ -94,29 +94,59 @@ const DEAD_SCRIPTS = ["dev:web", "dev:server"];
 const MOBILE_APPS = ["apps/mobile", "apps/mobile-convex"];
 
 // Packages no web/fullstack pattern wires up today (weeds). Patterns override via
-// `unusedPackages` when they genuinely consume one. The desktop app consumes BOTH,
-// so keeping it rescues them from this list — see `survivingUnusedPackages`.
+// `unusedPackages` when they genuinely consume one. Both desktop apps consume BOTH,
+// so keeping either rescues them from this list — see `survivingUnusedPackages`.
 const UNUSED_PACKAGES = ["packages/i18n", "packages/tokens"];
 
-// The Electron app. Optional in every pattern (like mobile and docs) and the whole
-// point of the `desktop-local-first` pattern.
-const DESKTOP_APP = "apps/desktop";
+// The two desktop runtimes. At most one survives customization: it is optional in
+// every pattern (like mobile and docs) and the whole point of `desktop-local-first`.
+// See docs/adr/0002-desktop-tauri-alongside-electron.md.
+type DesktopRuntime = "electron" | "tauri";
 
-// Committed (not generated) workflows that only make sense with the desktop app.
-const DESKTOP_WORKFLOWS = [
-  ".github/workflows/ci-desktop.yml",
-  ".github/workflows/release-desktop.yml",
-];
+interface DesktopApp {
+  dir: string;
+  /** Shown in prompts and the plan. */
+  label: string;
+  /** Committed (not generated) workflows that only make sense with this app. */
+  workflows: string[];
+  /** Root scripts that filter this app; turbo errors on a filter matching nothing. */
+  scripts: string[];
+}
 
-// Root scripts that only make sense with the desktop app. `postinstall` fetches the
-// Electron binary (electron ships with no postinstall of its own, and Bun does not run
-// a workspace package's postinstall automatically) — see the CLAUDE.md gotcha.
-const DESKTOP_SCRIPTS = ["dev:desktop", "test:desktop", "postinstall"];
+const DESKTOP_APPS: Record<DesktopRuntime, DesktopApp> = {
+  electron: {
+    dir: "apps/desktop-electron",
+    label: "Electron (electron-vite, node:sqlite in the main process)",
+    workflows: [
+      ".github/workflows/ci-desktop-electron.yml",
+      ".github/workflows/release-desktop-electron.yml",
+    ],
+    // `postinstall` fetches the Electron binary (electron ships with no postinstall
+    // of its own, and Bun does not run a workspace package's postinstall
+    // automatically) — see the CLAUDE.md gotcha.
+    scripts: ["dev:desktop-electron", "test:desktop-electron", "postinstall"],
+  },
+  tauri: {
+    dir: "apps/desktop-tauri",
+    label: "Tauri (Rust core owns SQLite, use cases run in the webview)",
+    workflows: [
+      ".github/workflows/ci-desktop-tauri.yml",
+      ".github/workflows/release-desktop-tauri.yml",
+    ],
+    scripts: ["dev:desktop-tauri", "test:desktop-tauri", "bundle:desktop-tauri"],
+  },
+};
+
+const DESKTOP_RUNTIMES = Object.keys(DESKTOP_APPS) as DesktopRuntime[];
+
+function isDesktopRuntime(value: string): value is DesktopRuntime {
+  return (DESKTOP_RUNTIMES as string[]).includes(value);
+}
 
 /**
- * `unusedPackages` minus anything the desktop app needs. The desktop renderer
- * imports `tokens` for its stylesheet and `i18n` for both the UI and the tray, so
- * removing them as "weeds" would break a kept desktop app.
+ * `unusedPackages` minus anything a desktop app needs. Both renderers import
+ * `tokens` for their stylesheet and `i18n` for the UI and the tray, so removing
+ * them as "weeds" would break a kept desktop app.
  */
 function survivingUnusedPackages(config: PatternConfig, keepDesktop: boolean): string[] {
   if (!keepDesktop) return config.unusedPackages;
@@ -398,9 +428,11 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
     ],
     deploy: "cloudflare",
   },
+  // `keep`, `label`, `dbEnvSource` and `ciAppDir` below describe the Electron
+  // default; `resolvePatternConfig` swaps them for the runtime `--desktop` picks.
   "desktop-local-first": {
-    label: "Desktop local-first (apps/desktop)",
-    keep: [DESKTOP_APP],
+    label: "Desktop local-first (apps/desktop-electron)",
+    keep: [DESKTOP_APPS.electron.dir],
     // No web client and no server, so there is nothing for Expo to talk to.
     mobileApp: null,
     // The desktop app is the consumer of both: `tokens` for its stylesheet,
@@ -415,8 +447,9 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       "apps/fullstack-fn-and-convex",
       // A local-first app has no server, no database and no hosting, so every
       // infra-* adapter goes with them. `packages/config` only ever fed those
-      // packages and the web apps their shared tsconfig; the desktop app extends
-      // @electron-toolkit/tsconfig instead, so it goes too.
+      // packages and the web apps their shared tsconfig; neither desktop app
+      // extends it (Electron uses @electron-toolkit/tsconfig, Tauri a
+      // self-contained tsconfig), so it goes too.
       "packages/web-ui",
       "packages/infra-auth",
       "packages/infra-cloudflare",
@@ -448,8 +481,8 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
       ...ELYSIA_CATALOG,
       ...HONO_ORPC_CATALOG,
       ...CONVEX_CATALOG,
-      // Electron brings its own React/Vite toolchain in the app's package.json,
-      // and the renderer uses CSS Modules rather than Tailwind.
+      // Both desktop apps bring their own React toolchain in their package.json,
+      // and their renderers use CSS Modules rather than Tailwind.
       "@tailwindcss/vite",
       "tailwindcss",
       "wrangler",
@@ -461,8 +494,8 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
     envFilesToDelete: [],
     // Nothing reads a database URL, but the field is required; it is unused
     // because every db:* script is removed above.
-    dbEnvSource: "apps/desktop/.env",
-    ciAppDir: DESKTOP_APP,
+    dbEnvSource: "apps/desktop-electron/.env",
+    ciAppDir: DESKTOP_APPS.electron.dir,
     ciNeedsBackend: false,
     ciBackendDir: null,
     ciBuildEnv: {},
@@ -471,6 +504,24 @@ const PATTERNS: Record<Pattern, PatternConfig> = {
     deploy: "desktop-release",
   },
 };
+
+/**
+ * The pattern's config for the chosen desktop runtime. Only `desktop-local-first`
+ * depends on it: that pattern *is* the desktop app, so the app it keeps and the
+ * directory CI builds follow the runtime.
+ */
+function resolvePatternConfig(pattern: Pattern, desktop: DesktopRuntime | null): PatternConfig {
+  const config = PATTERNS[pattern];
+  if (pattern !== "desktop-local-first") return config;
+  const app = DESKTOP_APPS[desktop ?? "electron"];
+  return {
+    ...config,
+    label: `Desktop local-first (${app.dir})`,
+    keep: [app.dir],
+    dbEnvSource: `${app.dir}/.env`,
+    ciAppDir: app.dir,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Env schema -> file mapping
@@ -527,6 +578,17 @@ function removeFile(rel: string): boolean {
 
 async function readJson(rel: string) {
   return Bun.file(abs(rel)).json();
+}
+
+/** Names an app's package.json pulls from the workspace catalog (`"catalog:"`). */
+async function catalogRefs(appDir: string): Promise<Set<string>> {
+  const pkg = await readJson(`${appDir}/package.json`);
+  const deps: Record<string, string> = { ...pkg.dependencies, ...pkg.devDependencies };
+  return new Set(
+    Object.entries(deps)
+      .filter(([, version]) => version.startsWith("catalog:"))
+      .map(([name]) => name),
+  );
 }
 
 async function writeJson(rel: string, data: unknown): Promise<void> {
@@ -600,7 +662,7 @@ const PACKAGE_PURPOSE: Record<string, string> = {
   "convex-api": "Convex functions for the web app (Convex pattern)",
   "convex-auth-api": "Convex functions + Better-Auth-in-Convex (mobile-convex)",
   "web-ui": "Shared React UI (shadcn/ui, Tailwind) — exports built dist/",
-  i18n: "Message catalogs + React provider; the non-React core export serves email, push and the Electron main process",
+  i18n: "Message catalogs + React provider; the non-React core export serves email, push and the Electron main process, and the Tauri core embeds the JSON catalogs for its tray",
   tokens:
     "Design tokens: one TS source generating the prefixed (web) and unprefixed (desktop) stylesheets",
   config: "Shared tsconfig",
@@ -1065,7 +1127,8 @@ interface Choices {
   keepMobile: boolean;
   keepDocs: boolean;
   keepConvex: boolean;
-  keepDesktop: boolean;
+  /** The desktop runtime to keep, or `null` to drop both desktop apps. */
+  desktop: DesktopRuntime | null;
   projectName: string | null;
 }
 
@@ -1074,7 +1137,8 @@ interface CliArgs {
   mobile?: boolean;
   docs?: boolean;
   convex?: boolean;
-  desktop?: boolean;
+  /** A runtime from `--desktop[=<runtime>]`, `null` from `--no-desktop`. */
+  desktop?: DesktopRuntime | null;
   name?: string;
   yes: boolean;
   dryRun: boolean;
@@ -1103,10 +1167,12 @@ Options:
   --mobile / --no-mobile Keep/drop the Expo app (default: drop)
   --docs   / --no-docs   Keep/drop the docs site (default: drop)
   --convex / --no-convex Keep/drop Convex skills (default: drop; forced on for the convex pattern)
-  --desktop / --no-desktop
-                         Keep/drop the Electron app (default: drop; forced on for
-                         the desktop pattern). Keeping it also keeps the i18n and
-                         tokens packages, which it consumes.
+  --desktop[=electron|tauri] / --no-desktop
+                         Keep one desktop app, or none (default: none; a bare
+                         --desktop means electron). The desktop pattern always
+                         keeps one, electron unless you pass --desktop=tauri.
+                         Keeping either also keeps the i18n and tokens packages,
+                         which both consume.
   --dry-run              Print the plan and exit without touching anything
   --skip-verify          Do the transforms but skip install + build + typecheck
   --yes, -y              Skip the confirmation prompt (interactive mode)
@@ -1135,8 +1201,14 @@ function parseArgs(argv: string[]): CliArgs {
     else if (a === "--no-docs") out.docs = false;
     else if (a === "--convex") out.convex = true;
     else if (a === "--no-convex") out.convex = false;
-    else if (a === "--desktop") out.desktop = true;
-    else if (a === "--no-desktop") out.desktop = false;
+    else if (a === "--desktop") out.desktop = "electron";
+    else if (a.startsWith("--desktop=")) {
+      const runtime = a.slice("--desktop=".length).trim().toLowerCase();
+      if (!isDesktopRuntime(runtime)) {
+        fail(`Unknown desktop runtime: "${runtime}". One of: ${DESKTOP_RUNTIMES.join(", ")}`);
+      }
+      out.desktop = runtime;
+    } else if (a === "--no-desktop") out.desktop = null;
     else if (a === "--pattern") out.pattern = argv[++i];
     else if (a.startsWith("--pattern=")) out.pattern = a.slice("--pattern=".length);
     else if (a === "--name") out.name = argv[++i];
@@ -1167,13 +1239,14 @@ function choicesFromArgs(args: CliArgs): Choices {
   // The Convex fullstack pattern always keeps Convex; everything else defaults off.
   const keepConvex = pattern === "fullstack-fn-and-convex" ? true : (args.convex ?? false);
   // The desktop pattern IS the desktop app; --no-desktop would leave nothing.
-  if (args.desktop === false && pattern === "desktop-local-first") {
+  if (args.desktop === null && pattern === "desktop-local-first") {
     console.error("Warning: --no-desktop ignored (this pattern is the desktop app).");
   }
-  const keepDesktop = pattern === "desktop-local-first" ? true : (args.desktop ?? false);
+  const desktop =
+    pattern === "desktop-local-first" ? (args.desktop ?? "electron") : (args.desktop ?? null);
   const projectName = args.name?.replace(/^@/, "").trim() || null;
 
-  return { pattern, keepMobile, keepDocs, keepConvex, keepDesktop, projectName };
+  return { pattern, keepMobile, keepDocs, keepConvex, desktop, projectName };
 }
 
 /** Gather the choice set interactively via prompts (TTY mode). */
@@ -1184,7 +1257,7 @@ function choicesInteractive(): Choices {
     "Backend only -- Hono + oRPC API (apps/server-hono), no client",
     "Fullstack serverFn only -- Single app using TanStack Start server functions",
     "Fullstack serverFn + Convex -- TanStack Start with Convex real-time backend",
-    "Desktop local-first -- Electron app (apps/desktop), no server, no web client",
+    "Desktop local-first -- Electron or Tauri app, no server, no web client",
   ]);
   const pattern = PATTERN_KEYS[patternIdx];
   const config = PATTERNS[pattern];
@@ -1197,16 +1270,21 @@ function choicesInteractive(): Choices {
     pattern === "fullstack-fn-and-convex"
       ? true
       : yesNo("Keep Convex skills (for future integration)?");
-  // The desktop pattern is nothing but the desktop app, so there is nothing to ask.
-  const keepDesktop =
-    pattern === "desktop-local-first" ? true : yesNo("Keep desktop app (Electron, local-first)?");
+  // The desktop pattern always keeps one app, so it only asks which runtime.
+  const runtimeLabels = DESKTOP_RUNTIMES.map((r) => DESKTOP_APPS[r].label);
+  const desktop: DesktopRuntime | null =
+    pattern === "desktop-local-first"
+      ? DESKTOP_RUNTIMES[choose("Which desktop runtime?", runtimeLabels)]
+      : ([null, ...DESKTOP_RUNTIMES] as const)[
+          choose("Keep a desktop app (local-first)?", ["No", ...runtimeLabels])
+        ];
 
   console.log('\nProject name (kebab-case, e.g. "my-app").');
   console.log("This replaces @monorepo-template scope everywhere.");
   const rawName = prompt("  Name (or press Enter to skip):") || null;
   const projectName = rawName?.replace(/^@/, "").trim() || null;
 
-  return { pattern, keepMobile, keepDocs, keepConvex, keepDesktop, projectName };
+  return { pattern, keepMobile, keepDocs, keepConvex, desktop, projectName };
 }
 
 // ---------------------------------------------------------------------------
@@ -1229,17 +1307,22 @@ async function main() {
 
   // --- Gather choices ---
 
-  const { pattern, keepMobile, keepDocs, keepConvex, keepDesktop, projectName } = interactive
+  const { pattern, keepMobile, keepDocs, keepConvex, desktop, projectName } = interactive
     ? choicesInteractive()
     : choicesFromArgs(args);
-  const config = PATTERNS[pattern];
+  const config = resolvePatternConfig(pattern, desktop);
+  const keepDesktop = desktop !== null;
+  const keptDesktopApp = desktop ? DESKTOP_APPS[desktop] : null;
+  const droppedDesktopApps = DESKTOP_RUNTIMES.filter((r) => r !== desktop).map(
+    (r) => DESKTOP_APPS[r],
+  );
 
   const scope = projectName ? `@${projectName}` : "@monorepo-template";
 
   // --- Confirm ---
 
   const toDelete = [...config.remove, ...survivingUnusedPackages(config, keepDesktop)];
-  if (!keepDesktop) toDelete.push(DESKTOP_APP);
+  for (const app of droppedDesktopApps) toDelete.push(app.dir);
   // Mobile: keep only this pattern's variant (if the user wants mobile); the other
   // mobile variant is always removed.
   const keepMobileConvex = keepMobile && config.mobileApp === "apps/mobile-convex";
@@ -1256,7 +1339,7 @@ async function main() {
     ...(keepMobile && config.mobileApp ? [config.mobileApp] : []),
     ...(keepDocs ? ["apps/documentation"] : []),
     // The desktop pattern already lists it in `keep`; don't list it twice.
-    ...(keepDesktop && !config.keep.includes(DESKTOP_APP) ? [DESKTOP_APP] : []),
+    ...(keptDesktopApp && !config.keep.includes(keptDesktopApp.dir) ? [keptDesktopApp.dir] : []),
   ];
 
   console.log("\n" + "=".repeat(50));
@@ -1266,7 +1349,7 @@ async function main() {
   console.log(`  Mobile:   ${keepMobile ? "keep" : "remove"}`);
   console.log(`  Docs:     ${keepDocs ? "keep" : "remove"}`);
   console.log(`  Convex:   ${keepConvex ? "keep" : "remove"}`);
-  console.log(`  Desktop:  ${keepDesktop ? "keep" : "remove"}`);
+  console.log(`  Desktop:  ${desktop ?? "remove"}`);
   console.log(`  Scope:    ${projectName ? `@monorepo-template -> ${scope}` : "no rename"}`);
   console.log(`\n  DELETE: ${toDelete.join(", ")}`);
   console.log(`  KEEP:   ${toKeep.join(", ")}`);
@@ -1325,8 +1408,8 @@ async function main() {
   if (toDelete.includes("apps/server-hono")) {
     scriptsToRemove.push("test:integration", "test:integration:ci");
   }
-  // The desktop scripts filter `desktop`; turbo errors on a filter matching nothing.
-  if (!keepDesktop) scriptsToRemove.push(...DESKTOP_SCRIPTS);
+  // Each desktop app's scripts filter that app; turbo errors on a filter matching nothing.
+  for (const app of droppedDesktopApps) scriptsToRemove.push(...app.scripts);
   for (const script of scriptsToRemove) {
     if (pkg.scripts?.[script]) {
       delete pkg.scripts[script];
@@ -1352,7 +1435,10 @@ async function main() {
   // Remove catalog entries
   const catalogToRemove = [...config.catalogRemove];
   if (!keepMobile) catalogToRemove.push("@better-auth/expo");
-  for (const entry of catalogToRemove) {
+  // A kept desktop app is an add-on the pattern's list knows nothing about (e.g.
+  // backend-only drops `vite`), so never remove a catalog entry it still uses.
+  const desktopCatalog = keptDesktopApp ? await catalogRefs(keptDesktopApp.dir) : new Set<string>();
+  for (const entry of catalogToRemove.filter((e) => !desktopCatalog.has(e))) {
     if (pkg.workspaces?.catalog?.[entry]) {
       delete pkg.workspaces.catalog[entry];
       console.log(`  Removed catalog: ${entry}`);
@@ -1424,16 +1510,16 @@ async function main() {
     );
     console.log("  Generated .github/workflows/deploy-production.yml");
   } else {
-    // Nothing to deploy to a Worker: the desktop app ships from a `desktop-v*`
-    // tag through the committed release-desktop.yml.
+    // Nothing to deploy to a Worker: the desktop app ships from its
+    // `desktop-<runtime>-v*` tag through the committed release-desktop-*.yml.
     if (removeFile(".github/workflows/deploy-production.yml")) {
       console.log("  Removed .github/workflows/deploy-production.yml (nothing to deploy)");
     }
   }
 
-  // The desktop workflows are committed, not generated — drop them when the app goes.
-  if (!keepDesktop) {
-    for (const workflow of DESKTOP_WORKFLOWS) {
+  // The desktop workflows are committed, not generated — drop them with their app.
+  for (const app of droppedDesktopApps) {
+    for (const workflow of app.workflows) {
       if (removeFile(workflow)) console.log(`  Removed ${workflow}`);
     }
   }

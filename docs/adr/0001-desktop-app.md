@@ -3,6 +3,10 @@
 - **Status:** accepted
 - **Date:** 2026-09-03
 - **Applies to:** `apps/desktop/`, `packages/tokens`, `scripts/customize.ts`
+- **Amended by:** [ADR 0002](./0002-desktop-tauri-alongside-electron.md) — the app now lives in
+  `apps/desktop-electron/` (package `desktop-electron`), its workflows are
+  `ci-desktop-electron.yml` / `release-desktop-electron.yml`, and it releases from
+  `desktop-electron-v*` tags. The decision below is unchanged; paths in it are historical.
 
 ## Context
 

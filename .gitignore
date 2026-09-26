@@ -53,7 +53,7 @@ pr-summaries/
 
 # AI-generated scratch files kept locally for context but never tracked
 workspace-temp/
-# electron-vite build output (apps/desktop)
+# electron-vite build output (apps/desktop-electron)
 out/
 
 # lefthook per-developer overrides (never committed)

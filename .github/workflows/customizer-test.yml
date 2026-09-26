@@ -36,7 +36,7 @@ jobs:
         run: bun test scripts/customize.test.ts
 
   build:
-    name: Core build (${{ matrix.pattern }})
+    name: Core build (${{ matrix.pattern }} ${{ matrix.desktop }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -52,6 +52,13 @@ jobs:
           - fullstack-fn-only
           - fullstack-fn-and-convex
           - desktop-local-first
+        desktop: [""]
+        include:
+          # The desktop pattern's second runtime. Its Rust side is not compiled
+          # here — the customizer's build is the renderer; ci-desktop-tauri.yml
+          # owns cargo.
+          - pattern: desktop-local-first
+            desktop: --desktop=tauri
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -65,7 +72,8 @@ jobs:
       # non-zero if any of those fail. `--no-mobile --no-docs` drops the Expo and
       # Astro installs so this stays about the core stack — mobile/docs pruning is
       # already covered by the structural job.
-      # `--desktop` is only meaningful for the desktop pattern (where it is forced
-      # on anyway); the other patterns build their core stack without it.
-      - name: Customize + build core (${{ matrix.pattern }})
-        run: bun scripts/customize.ts --pattern ${{ matrix.pattern }} --no-mobile --no-docs --name testcore --yes
+      # The desktop pattern always keeps one desktop app: Electron by default,
+      # Tauri in the extra `include` entry. The other patterns build their core
+      # stack without one.
+      - name: Customize + build core (${{ matrix.pattern }} ${{ matrix.desktop }})
+        run: bun scripts/customize.ts --pattern ${{ matrix.pattern }} ${{ matrix.desktop }} --no-mobile --no-docs --name testcore --yes

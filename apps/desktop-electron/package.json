@@ -1,5 +1,5 @@
 {
-  "name": "desktop",
+  "name": "desktop-electron",
   "version": "0.1.0",
   "private": true,
   "description": "Local-first Electron app: the desktop client of the monorepo template",
