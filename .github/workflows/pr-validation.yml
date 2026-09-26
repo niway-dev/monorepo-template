@@ -1,21 +1,21 @@
 name: PR Validation
 
-# Tier: per-PR backstop on Linux (docs/adr/0003-desktop-ci-pipelines.md). The same
-# checks run free in the Lefthook pre-push (`bun run verify`); this repeats them in a
-# clean environment on every PR. Desktop suites are not here — they run in the desktop
-# release gates, and on demand.
+# Tier: on demand only (docs/adr/0003-desktop-ci-pipelines.md; hub:
+# monorepos/release-gated-verification.md). Not triggered by pull requests: with a single
+# owner and no branch protection a PR check is advisory — it bills every push and verifies
+# nothing the Lefthook pre-push (`bun run verify`: lint, format, package builds, types,
+# tests) has not already verified for free. Release workflows run the same `verify` on the
+# tagged SHA before publishing. Dispatch this from the Actions tab after a risky change
+# (lockfile, workflows, scripts/, build config) to rehearse it in a clean environment.
 #
-# Reopen (to workflow_dispatch plus a release-candidate check, the hub's full
-# release-gated-verification model) when PR-time minutes start to matter on the
-# account's bill, or the repository settles on a single owner merging.
+# Reopen (back to pull_request) when a second person merges to main, or branch protection
+# makes the check required — then it is a guarantee instead of a notification.
 
 on:
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

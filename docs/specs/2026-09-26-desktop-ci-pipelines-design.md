@@ -1,7 +1,10 @@
 # Desktop CI pipelines — design
 
 - **Date:** 2026-09-26
-- **Status:** approved; implemented on `ci/desktop-pipelines`
+- **Status:** approved; implemented on `ci/desktop-pipelines`, with two corrections recorded in
+  [ADR 0003](../adr/0003-desktop-ci-pipelines.md): finding 1 misattributed the install time (the
+  `postinstall` took 1.75 s; the ~2 min is `bun install` itself), and the owner widened item 4 to
+  every pull-request workflow
 - **Applies the hub playbook:**
   [release-gated-verification](https://github.com/csdev19/general-knowledge/blob/main/monorepos/release-gated-verification.md),
   [ci-runner-cost](https://github.com/csdev19/general-knowledge/blob/main/monorepos/ci-runner-cost.md),

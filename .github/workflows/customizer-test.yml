@@ -1,27 +1,24 @@
 name: Customizer Test
 
-# Only runs when the customizer (or the template wiring it edits) changes — the
-# rest of the time it costs nothing. The template's normal PR validation does
-# not exercise the customizer at all.
+# Tier: on demand only (docs/adr/0003-desktop-ci-pipelines.md; hub:
+# monorepos/release-gated-verification.md). Not triggered by pull requests: with a single
+# owner and no branch protection a PR check is advisory — it bills every push and verifies
+# nothing the Lefthook pre-push (`bun run verify`: lint, format, package builds, types,
+# tests) has not already verified for free. Release workflows run the same `verify` on the
+# tagged SHA before publishing. Dispatch this from the Actions tab after a risky change
+# (lockfile, workflows, scripts/, build config) to rehearse it in a clean environment.
 #
-# Tier: per-PR, path-filtered to the customizer (docs/adr/0003-desktop-ci-pipelines.md).
-# Linux only; one structural job plus one real customize+build per pattern.
-# Reopen (to workflow_dispatch) if customizer PRs become frequent enough to matter on
-# the bill — the structural job alone then stays per-PR.
+# Reopen (back to pull_request) when a second person merges to main, or branch protection
+# makes the check required — then it is a guarantee instead of a notification.
+
+# What it checks: every pattern customizes, installs, builds and type-checks. Dispatch it
+# after changing scripts/customize.ts, scripts/rename.ts or the wiring they edit; the
+# structural tests (`bun test scripts/customize.test.ts`) run locally in ~2 s.
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - "scripts/customize.ts"
-      - "scripts/rename.ts"
-      - "scripts/customize.test.ts"
-      - "packages/infra-env/**"
-      - "package.json"
-      - ".github/workflows/customizer-test.yml"
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

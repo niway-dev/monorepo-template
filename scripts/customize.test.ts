@@ -357,6 +357,13 @@ describe("customizer produces a clean project per pattern", () => {
       expect(ci, "pr-validation caches bun").toContain("~/.bun/install/cache");
       expect(ci, "pr-validation caches turbo").toContain("path: .turbo");
 
+      // 12f. Nothing runs on pull requests (hub: release-gated-verification.md) — the
+      // pre-push `verify` is the gate for a single-owner repository.
+      for (const file of require("node:fs").readdirSync(workflowsDir)) {
+        const body = readFileSync(path.join(workflowsDir, file), "utf-8");
+        expect(/^\s+pull_request:/m.test(body), `${file} runs on pull_request`).toBe(false);
+      }
+
       // 12e. Every kept release workflow is gated by a verify job (hub R1).
       for (const file of require("node:fs").readdirSync(workflowsDir)) {
         if (!file.startsWith("release-")) continue;

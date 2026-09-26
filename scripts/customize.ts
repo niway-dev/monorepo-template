@@ -976,22 +976,20 @@ function generatePrValidation(config: PatternConfig, scope: string): string {
 
   return `name: PR Validation
 
-# Tier: per-PR backstop on Linux (the template's ADR 0003). The same
-# checks run free in the Lefthook pre-push (\`bun run verify\`); this repeats them in a
-# clean environment on every PR. Desktop suites are not here — they run in the desktop
-# release gates, and on demand.
+# Tier: on demand only (the template's ADR 0003; hub: monorepos/release-gated-verification.md).
+# Not triggered by pull requests: with a single owner and no branch protection a PR check is
+# advisory — it bills every push and verifies nothing the Lefthook pre-push
+# (\`bun run verify\`) has not already verified for free. Dispatch it from the Actions tab
+# after a risky change (lockfile, workflows, scripts/, build config).
 #
-# Reopen (to workflow_dispatch plus a release-candidate check, the hub's full
-# release-gated-verification model) when PR-time minutes start to matter on the
-# account's bill, or the repository settles on a single owner merging.
+# Reopen (back to pull_request) when a second person merges to main, or branch protection
+# makes the check required — then it is a guarantee instead of a notification.
 
 on:
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 concurrency:
-  group: \${{ github.workflow }}-\${{ github.event.pull_request.number }}
+  group: \${{ github.workflow }}-\${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

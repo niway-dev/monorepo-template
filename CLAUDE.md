@@ -80,12 +80,12 @@ here):
   the release workflow call first. Without it, `electron-vite dev` fails with
   `Error: Electron uninstall`. Tests, type-check and `build` need no binary. The app has no native
   modules (`node:sqlite`); adding one means an explicit `rebuild:native` script, never a
-  `postinstall`. The root `postinstall` this replaced cost ~2 min in every CI job
-  (`docs/adr/0003-desktop-ci-pipelines.md`).
+  `postinstall` (`docs/adr/0003-desktop-ci-pipelines.md`).
 - **`bun run verify` is the one definition of green:** lint, format check, package builds,
   type-check, tests. The Lefthook pre-push runs it (plus the Tauri app's `verify:rust` when a push
   touches its Rust core or the i18n catalogs), and every desktop release workflow runs the same
-  commands in a Linux `verify` job that the macOS job `needs:`. Desktop CI runs on demand only.
+  commands in a Linux `verify` job that the macOS job `needs:`. No workflow runs on pull requests;
+  they are all `workflow_dispatch`, for rehearsing a risky change in a clean environment.
   Change the checks in `verify`, never in one caller.
 - **Tauri bindings are generated and committed:** `apps/desktop-tauri/src/bindings.ts` comes from
   the Rust command signatures (tauri-specta). After changing a command, run `bun run bindings` in
