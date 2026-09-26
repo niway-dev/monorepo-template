@@ -1618,7 +1618,10 @@ async function main() {
   console.log("\n[7/8] Removing customization files...");
   removeDir(".claude/skills/customize-template");
   removeFile(".claude/commands/customize-template.md");
+  // Maintaining the template means editing customize.ts, which is deleted below.
+  removeDir(".claude/skills/extending-the-template");
   console.log("  Removed .claude/skills/customize-template/");
+  console.log("  Removed .claude/skills/extending-the-template/");
   console.log("  Removed .claude/commands/customize-template.md");
 
   // --- Step 8: Rename + Install + Verify ---
