@@ -9,7 +9,7 @@ mod updater;
 
 use std::sync::Mutex;
 
-use tauri::{Manager, RunEvent, WindowEvent};
+use tauri::{Manager, WindowEvent};
 
 /// Composition root. Everything the app depends on is constructed here — the
 /// database, the settings store, the tray — and handed to Tauri as managed
@@ -53,9 +53,11 @@ pub fn run() {
         .expect("error while building the tauri application");
 
     app.run(|_app, _event| {
-        // macOS: clicking the Dock icon brings the hidden window back.
+        // macOS: clicking the Dock icon brings the hidden window back. The path is
+        // fully qualified because `RunEvent::Reopen` only exists on macOS: an
+        // unconditional `use` is an unused import — a clippy error — everywhere else.
         #[cfg(target_os = "macos")]
-        if let RunEvent::Reopen { .. } = _event {
+        if let tauri::RunEvent::Reopen { .. } = _event {
             tray::show_main_window(_app);
         }
     });
