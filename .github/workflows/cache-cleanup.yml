@@ -1,0 +1,46 @@
+name: Cache cleanup
+
+# Tier: housekeeping, one short Linux job per closed PR.
+#
+# GitHub scopes a cache to the ref that created it, and a `pull_request` run uses
+# `refs/pull/<n>/merge` — not the head branch. Deleting the branch on merge therefore
+# leaves every cache that PR created behind until the 7-day idle eviction, and a steady
+# merge rate outruns that clock. PR #25 alone left 578 MB of bun install cache against a
+# hard 10 GB per-repository ceiling; past it GitHub evicts by least-recent-use, starting
+# with the install caches that are the expensive ones to rebuild.
+#
+# Deletes by id, filtered on the PR's ref — never by key: keys repeat across refs by
+# design, so deleting by key would take `main`'s cache with it.
+# See general-knowledge/monorepos/actions-cache-lifecycle.md.
+#
+# Reopen when: never on cost grounds (it saves more than its minute); remove it only if
+# GitHub starts scoping PR caches to the head branch.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  actions: write # deleting a cache entry is an Actions write
+  contents: read
+
+jobs:
+  cleanup:
+    name: Delete this PR's caches
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete caches scoped to the PR's merge ref
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          REF: refs/pull/${{ github.event.pull_request.number }}/merge
+        run: |
+          set -euo pipefail
+          ids=$(gh api --paginate "repos/$REPO/actions/caches?per_page=100" \
+                  --jq ".actions_caches[] | select(.ref == \"$REF\") | .id")
+          count=0
+          for id in $ids; do
+            gh api -X DELETE "repos/$REPO/actions/caches/$id" --silent
+            count=$((count + 1))
+          done
+          echo "Deleted $count cache entries for $REF"

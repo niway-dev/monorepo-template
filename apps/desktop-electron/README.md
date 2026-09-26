@@ -19,6 +19,12 @@ bun run package:dev    # unpacked build, for a quick local smoke test
 bun run package:mac    # signed (and notarized) macOS build — see Signing below
 ```
 
+`bun install` does not download Electron — the repo runs no lifecycle scripts. `dev`, `start` and
+every `package:*` script call `bun run electron:install` first, which fetches the binary once and is
+a no-op afterwards. Tests, type-check and `build` never need it. This app has no native modules; if
+you add one, rebuild it with an explicit `rebuild:native` script, never a `postinstall` (see the
+hub's [native-dependencies](https://github.com/csdev19/general-knowledge/blob/main/desktop/native-dependencies.md)).
+
 ## Why this app exists
 
 `packages/domain` declares the `ITodoRepository` port. `packages/infra-db`
@@ -101,7 +107,9 @@ it namespaces the app's data directory and the Windows taskbar grouping.
 why `scripts/build-mac-local.sh` sources them first. With the `APPLE_API_*` vars
 set the build is notarized and stapled; without them it is signed only.
 
-**In CI:** `.github/workflows/release-desktop-electron.yml` builds, signs and notarizes on a
+**In CI:** `.github/workflows/release-desktop-electron.yml` first runs `bun run verify` on Linux
+against the tagged SHA (and checks the tag against `package.json`); only then does it build, sign
+and notarize on a
 `desktop-electron-v*` tag and attaches the DMGs to a draft GitHub Release. It needs the
 signing secrets in a `production` GitHub Environment — the workflow header lists
 them. Publishing an update feed is off until you set `PUBLISH_UPDATES=true` and

@@ -1,7 +1,7 @@
 # Desktop CI pipelines — design
 
 - **Date:** 2026-09-26
-- **Status:** draft, for review
+- **Status:** approved; implemented on `ci/desktop-pipelines`
 - **Applies the hub playbook:**
   [release-gated-verification](https://github.com/csdev19/general-knowledge/blob/main/monorepos/release-gated-verification.md),
   [ci-runner-cost](https://github.com/csdev19/general-knowledge/blob/main/monorepos/ci-runner-cost.md),

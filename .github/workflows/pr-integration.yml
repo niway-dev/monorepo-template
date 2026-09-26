@@ -1,5 +1,8 @@
 name: PR Integration Tests
 
+# Tier: per-PR, path-filtered to the API and the packages it reads, and inert until
+# RUN_INTEGRATION_TESTS=true (docs/adr/0003-desktop-ci-pipelines.md). Linux only.
+
 # API integration tests run against a REAL Neon branch, so they need a secret.
 # This job is opt-in: it stays skipped until you set the repository variable
 # RUN_INTEGRATION_TESTS=true and add the TEST_DATABASE_URL secret (see below).

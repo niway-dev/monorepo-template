@@ -22,6 +22,9 @@ set +a
 echo "-> Signing identities available:"
 security find-identity -v -p codesigning | grep "Developer ID Application" || true
 
+# 0) the Electron binary — never fetched by `bun install` (no lifecycle scripts)
+bun run electron:install
+
 # 1) build renderer + main with electron-vite (runs the type-check first)
 bun run build
 

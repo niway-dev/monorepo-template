@@ -7,6 +7,10 @@ name: Release Desktop (Electron)
 # from the Actions tab while tuning the pipeline. The tag is component-prefixed
 # so the desktop app can version independently of the web and API apps.
 #
+# Tier: release (docs/adr/0003-desktop-ci-pipelines.md). A Linux `verify` job gates the
+# macOS job with `needs:`; the tag must match apps/desktop-electron/package.json. This is
+# where the cloud validates the code that ships — desktop CI no longer runs per PR.
+#
 # ---------------------------------------------------------------------------
 # Secrets — store these in a GitHub Environment named `production` (hence the
 # `environment:` key below):
@@ -37,8 +41,61 @@ permissions:
   contents: write # create the GitHub Release and upload assets
 
 jobs:
+  # Release gate (R1 of the hub's release-gated-verification; docs/adr/0003-desktop-ci-pipelines.md):
+  # the same `bun run verify` the Lefthook pre-push runs, on the exact SHA being released,
+  # in a clean Linux environment. Nothing on the macOS runner (~10x the price of Linux)
+  # starts until it passes, so a red gate signs and publishes nothing. If it fails after
+  # the tag exists, fix forward and cut a patch release; do not move tags.
+  verify:
+    name: Verify (lint, types, tests)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check the tag matches the app version
+        # A `desktop-electron-v0.2.0` tag must not ship 0.1.0 artifacts and update metadata.
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          APP_VERSION="$(node -p "require('./apps/desktop-electron/package.json').version")"
+          TAG_VERSION="${GITHUB_REF_NAME#desktop-electron-v}"
+          if [ "$APP_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match apps/desktop-electron/package.json version $APP_VERSION"
+            exit 1
+          fi
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.4
+
+      # Restores main's entries (a tag can read main's caches). Keyed on inputs, never on
+      # github.sha, so it never mints a per-release entry.
+      - name: Cache bun dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Cache turbo outputs
+        uses: actions/cache/restore@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('bun.lock', 'turbo.json') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify
+        run: bun run verify
+
   release-mac:
     name: Build, sign & notarize (macOS)
+    needs: verify
     runs-on: macos-latest
     timeout-minutes: 60
     environment: production # the signing secrets live in this Environment
@@ -51,8 +108,16 @@ jobs:
         with:
           bun-version: 1.3.4
 
+      # No cache here on purpose: a tag-scoped cache is readable by no later run, and
+      # main never runs on macOS, so there is nothing to restore and nothing worth saving.
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      # `bun install` runs no lifecycle scripts, so the Electron binary is fetched here,
+      # explicitly — the only paths that need it are dev, packaging and this release.
+      - name: Install the Electron binary
+        working-directory: apps/desktop-electron
+        run: bun run electron:install
 
       - name: Prepare Apple API key file
         # @electron/notarize wants the .p8 as a file path, so materialize it into

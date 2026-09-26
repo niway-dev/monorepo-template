@@ -28,10 +28,16 @@ commit-msg:
         echo "release-please derives versions and changelogs from these prefixes."
         exit 1
 
+# pre-push is the first of the three verification tiers (docs/adr/0003-desktop-ci-pipelines.md):
+# the same `bun run verify` every release gate runs on the tagged SHA. Measured 2026-09-26
+# on the owner's machine: ~10 s cold, ~3 s with a warm Turbo cache.
 pre-push:
-  parallel: true
   jobs:
-    - name: lint
-      run: bunx oxlint
-    - name: format-check
-      run: bunx oxfmt --check .
+    - name: verify
+      run: bun run verify
+    # >>> desktop-tauri (customize.ts removes this block with the app)
+    # Only when the push touches the Rust core, or the i18n catalogs its tray embeds.
+    - name: verify-rust
+      glob: "{apps/desktop-tauri/src-tauri/**,packages/i18n/messages/**}"
+      run: bun run --cwd apps/desktop-tauri verify:rust
+    # <<< desktop-tauri

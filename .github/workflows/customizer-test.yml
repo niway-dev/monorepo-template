@@ -3,6 +3,11 @@ name: Customizer Test
 # Only runs when the customizer (or the template wiring it edits) changes — the
 # rest of the time it costs nothing. The template's normal PR validation does
 # not exercise the customizer at all.
+#
+# Tier: per-PR, path-filtered to the customizer (docs/adr/0003-desktop-ci-pipelines.md).
+# Linux only; one structural job plus one real customize+build per pattern.
+# Reopen (to workflow_dispatch) if customizer PRs become frequent enough to matter on
+# the bill — the structural job alone then stays per-PR.
 on:
   pull_request:
     branches:

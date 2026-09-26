@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "verify:rust": "bash scripts/verify-rust.sh",
     "bindings": "cargo test --manifest-path src-tauri/Cargo.toml export_bindings",
     "preview": "vite preview",
     "tauri": "tauri"

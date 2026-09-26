@@ -105,6 +105,11 @@ type DesktopRuntime = "electron" | "tauri";
 
 interface DesktopApp {
   dir: string;
+  /**
+   * Marker of this app's block in lefthook.yml (`# >>> <marker>` … `# <<< <marker>`),
+   * removed with the app. `null` when the app has no hook job of its own.
+   */
+  hookMarker: string | null;
   /** Shown in prompts and the plan. */
   label: string;
   /** Committed (not generated) workflows that only make sense with this app. */
@@ -116,18 +121,20 @@ interface DesktopApp {
 const DESKTOP_APPS: Record<DesktopRuntime, DesktopApp> = {
   electron: {
     dir: "apps/desktop-electron",
+    hookMarker: null,
     label: "Electron (electron-vite, node:sqlite in the main process)",
     workflows: [
       ".github/workflows/ci-desktop-electron.yml",
       ".github/workflows/release-desktop-electron.yml",
     ],
-    // `postinstall` fetches the Electron binary (electron ships with no postinstall
-    // of its own, and Bun does not run a workspace package's postinstall
-    // automatically) — see the CLAUDE.md gotcha.
-    scripts: ["dev:desktop-electron", "test:desktop-electron", "postinstall"],
+    // No `postinstall`: the app's own `electron:install` fetches the binary from the
+    // paths that need it (dev, packaging, release). See the CLAUDE.md gotcha.
+    scripts: ["dev:desktop-electron", "test:desktop-electron"],
   },
   tauri: {
     dir: "apps/desktop-tauri",
+    // The pre-push `verify-rust` job, which runs the app's Rust checks.
+    hookMarker: "desktop-tauri",
     label: "Tauri (Rust core owns SQLite, use cases run in the webview)",
     workflows: [
       ".github/workflows/ci-desktop-tauri.yml",
@@ -580,6 +587,22 @@ async function readJson(rel: string) {
   return Bun.file(abs(rel)).json();
 }
 
+/**
+ * Delete the lines from `# >>> <marker>` through `# <<< <marker>` (inclusive).
+ * Returns whether a block was found.
+ */
+async function removeMarkedBlock(rel: string, marker: string): Promise<boolean> {
+  const full = abs(rel);
+  if (!existsSync(full)) return false;
+  const lines = (await Bun.file(full).text()).split("\n");
+  const start = lines.findIndex((l) => l.trim().startsWith(`# >>> ${marker}`));
+  const end = lines.findIndex((l) => l.trim().startsWith(`# <<< ${marker}`));
+  if (start === -1 || end < start) return false;
+  lines.splice(start, end - start + 1);
+  await Bun.write(full, lines.join("\n"));
+  return true;
+}
+
 /** Names an app's package.json pulls from the workspace catalog (`"catalog:"`). */
 async function catalogRefs(appDir: string): Promise<Set<string>> {
   const pkg = await readJson(`${appDir}/package.json`);
@@ -953,6 +976,15 @@ function generatePrValidation(config: PatternConfig, scope: string): string {
 
   return `name: PR Validation
 
+# Tier: per-PR backstop on Linux (the template's ADR 0003). The same
+# checks run free in the Lefthook pre-push (\`bun run verify\`); this repeats them in a
+# clean environment on every PR. Desktop suites are not here — they run in the desktop
+# release gates, and on demand.
+#
+# Reopen (to workflow_dispatch plus a release-candidate check, the hub's full
+# release-gated-verification model) when PR-time minutes start to matter on the
+# account's bill, or the repository settles on a single owner merging.
+
 on:
   pull_request:
     branches:
@@ -974,6 +1006,25 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.4
+
+      # Keyed on inputs, never on github.sha: cache entries are immutable, so a per-SHA
+      # key mints a new entry on every push. cache-cleanup.yml deletes a PR's entries
+      # when it closes.
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: \${{ runner.os }}-bun-\${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            \${{ runner.os }}-bun-
+
+      - name: Cache turbo outputs
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: \${{ runner.os }}-turbo-\${{ hashFiles('bun.lock', 'turbo.json') }}
+          restore-keys: |
+            \${{ runner.os }}-turbo-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -1521,6 +1572,13 @@ async function main() {
   for (const app of droppedDesktopApps) {
     for (const workflow of app.workflows) {
       if (removeFile(workflow)) console.log(`  Removed ${workflow}`);
+    }
+  }
+
+  // A dropped desktop app's pre-push job would run a script that no longer exists.
+  for (const app of droppedDesktopApps) {
+    if (app.hookMarker && (await removeMarkedBlock("lefthook.yml", app.hookMarker))) {
+      console.log(`  Removed the ${app.hookMarker} pre-push job from lefthook.yml`);
     }
   }
 

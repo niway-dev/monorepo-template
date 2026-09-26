@@ -1,5 +1,9 @@
 name: Deploy Backend and Frontend to Production
 
+# Tier: release (deploy on push to `production`). Not yet gated by a `verify` job —
+# the hub's rule R1 applies here too; the web/server pass that adopts the full
+# release-gated model is recorded as follow-up work in docs/adr/0003-desktop-ci-pipelines.md.
+
 on:
   # just to testing
   # pull_request:

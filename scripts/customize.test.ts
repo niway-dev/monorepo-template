@@ -50,7 +50,7 @@ type DesktopRuntime = "electron" | "tauri";
 const DESKTOP: Record<DesktopRuntime, { app: string; scripts: string[]; workflows: string[] }> = {
   electron: {
     app: "apps/desktop-electron",
-    scripts: ["dev:desktop-electron", "test:desktop-electron", "postinstall"],
+    scripts: ["dev:desktop-electron", "test:desktop-electron"],
     workflows: [
       ".github/workflows/ci-desktop-electron.yml",
       ".github/workflows/release-desktop-electron.yml",
@@ -333,6 +333,35 @@ describe("customizer produces a clean project per pattern", () => {
             kept,
           );
         }
+      }
+
+      // 12a. No lifecycle scripts: `bun install` must not download or compile
+      // anything (hub: desktop/native-dependencies.md).
+      expect(rootPkg.scripts?.postinstall, "root postinstall").toBeUndefined();
+
+      // 12c. The Tauri pre-push job survives exactly when the app does — otherwise
+      // every push would run a script that no longer exists.
+      const hooks = readFileSync(path.join(dir, "lefthook.yml"), "utf-8");
+      expect(hooks.includes("verify:rust"), "lefthook verify-rust vs tauri").toBe(
+        c.desktop === "tauri",
+      );
+      expect(hooks, "pre-push runs verify").toContain("bun run verify");
+
+      // 12d. No cache key is minted per commit (hub: actions-cache-lifecycle.md), and
+      // the generated PR check restores the install and turbo caches.
+      const workflowsDir = path.join(dir, ".github/workflows");
+      for (const file of require("node:fs").readdirSync(workflowsDir)) {
+        const body = readFileSync(path.join(workflowsDir, file), "utf-8");
+        expect(/key:.*github\.sha/.test(body), `${file} keys a cache on github.sha`).toBe(false);
+      }
+      expect(ci, "pr-validation caches bun").toContain("~/.bun/install/cache");
+      expect(ci, "pr-validation caches turbo").toContain("path: .turbo");
+
+      // 12e. Every kept release workflow is gated by a verify job (hub R1).
+      for (const file of require("node:fs").readdirSync(workflowsDir)) {
+        if (!file.startsWith("release-")) continue;
+        const body = readFileSync(path.join(workflowsDir, file), "utf-8");
+        expect(body, `${file} has no needs: verify`).toContain("needs: verify");
       }
 
       // 12b. A kept desktop app keeps every catalog entry it references, even
