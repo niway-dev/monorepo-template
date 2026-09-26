@@ -19,6 +19,7 @@ Built with Tauri 2.12, Rust (rusqlite, bundled SQLite), React 19, Vite and CSS M
 bun run dev            # tauri dev: Vite on :1420 + the app window (repo root: bun run dev:desktop-tauri)
 bun run test           # renderer tests (Vitest + jsdom)
 bun run test:rust      # Rust core tests (also regenerates src/bindings.ts)
+bun run verify:rust    # fmt + clippy -D warnings + cargo test + stale-bindings check
 bun run bindings       # regenerate src/bindings.ts only
 bun run check-types    # tsc
 bun run build          # type-check, then vite build -> dist/ (what `turbo run build` runs)
@@ -26,6 +27,21 @@ bun run bundle         # tauri build: release binary + .app/.dmg (repo root: bun
 ```
 
 `bun run tauri <cmd>` runs any other Tauri CLI command.
+
+### Where the checks run
+
+`verify:rust` is the Rust half of "verified". It runs in three places, always the same script
+([ADR 0003](../../docs/adr/0003-desktop-ci-pipelines.md)):
+
+- **pre-push** (Lefthook), when the push touches `src-tauri/` or `packages/i18n/messages/`;
+- **the release gate** — the Linux `verify` job that `release-desktop-tauri.yml`'s macOS jobs
+  `needs:`;
+- **on demand** — `ci-desktop-tauri.yml`, dispatched from the Actions tab. Dispatch it on `main`
+  after a `Cargo.lock` change: that run is the only one that saves the Rust cache, and the release
+  gate restores it.
+
+Run it before pushing Rust that was only compiled on macOS: `cfg(target_os = …)` code is the
+classic way a change passes locally and fails clippy on Linux.
 
 ## Why this app exists
 
@@ -137,8 +153,9 @@ Replace the placeholders before shipping:
   public key here, keep the private key secret.
 - `plugins.updater.endpoints` — `https://github.com/<owner>/<repo>/releases/latest/download/latest.json`.
 
-**In CI:** `.github/workflows/release-desktop-tauri.yml` builds macOS arm64 and x64 on a
-`desktop-tauri-v*` tag (it fails if the tag does not match the `version` in `tauri.conf.json`),
+**In CI:** `.github/workflows/release-desktop-tauri.yml` runs `verify` and `verify:rust` on Linux
+against the tagged SHA (and fails if the tag does not match the `version` in `tauri.conf.json`),
+then builds macOS arm64 and x64,
 signs with a Developer ID, notarizes, and attaches the DMGs, the signed updater bundles and
 `latest.json` to a draft GitHub Release. The workflow header lists the secrets; the Apple ones are
 the same as the Electron release's. Updates reach users once the release is published (not draft,

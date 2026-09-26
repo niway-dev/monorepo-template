@@ -1,12 +1,21 @@
 name: PR Validation
 
+# Tier: on demand only (docs/adr/0003-desktop-ci-pipelines.md; hub:
+# monorepos/release-gated-verification.md). Not triggered by pull requests: with a single
+# owner and no branch protection a PR check is advisory — it bills every push and verifies
+# nothing the Lefthook pre-push (`bun run verify`: lint, format, package builds, types,
+# tests) has not already verified for free. Release workflows run the same `verify` on the
+# tagged SHA before publishing. Dispatch this from the Actions tab after a risky change
+# (lockfile, workflows, scripts/, build config) to rehearse it in a clean environment.
+#
+# Reopen (back to pull_request) when a second person merges to main, or branch protection
+# makes the check required — then it is a guarantee instead of a notification.
+
 on:
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -21,6 +30,25 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.4
+
+      # Keyed on inputs, never on github.sha: cache entries are immutable, so a per-SHA
+      # key mints a new entry on every push. cache-cleanup.yml deletes a PR's entries
+      # when it closes.
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Cache turbo outputs
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('bun.lock', 'turbo.json') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

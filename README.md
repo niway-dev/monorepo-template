@@ -143,6 +143,12 @@ Only the apps/packages for your chosen pattern remain after `customize`.
 - `bun run dev:desktop-electron` — Start the Electron desktop app
 - `bun run dev:desktop-tauri` — Start the Tauri desktop app (`bundle:desktop-tauri` builds installers)
 
+### Verifying
+
+- `bun run verify` — lint, format check, package builds, type-check and tests: the one definition
+  of "green". The pre-push hook and every release gate run it
+  ([ADR 0003](./docs/adr/0003-desktop-ci-pipelines.md)).
+
 ### Building
 
 - `bun run build` — Build all applications for production

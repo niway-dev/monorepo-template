@@ -1,26 +1,33 @@
 name: Desktop CI (Tauri)
 
-# The Tauri app's own checks, path-filtered so they only run when the app or a
-# shared package changes. Lint and formatting for the TypeScript side live in the
-# universal PR Validation workflow; this one adds the Rust side.
+# Tier: candidate on demand (docs/adr/0003-desktop-ci-pipelines.md).
+#
+# Not triggered by pull requests. The Lefthook pre-push runs `bun run verify` (~3 s warm)
+# and, when the push touches the Rust core or the i18n catalogs, `verify:rust` (~7 s
+# warm). release-desktop-tauri.yml runs both on the tagged SHA before anything is signed
+# or published. Run this from the Actions tab to rehearse a release on Linux — the one
+# platform the owner's machine does not cover, which is how a macOS-only import once
+# reached main (PR #25).
+#
+# Cost: one Linux job. A cold Rust build is several minutes, so the Rust cache matters.
+# It is SAVED only when this runs on main and RESTORED everywhere else: a branch or a tag
+# can read main's caches, but nothing can read a branch's or a tag's. So dispatching on a
+# branch never mints a multi-hundred-MB entry, and after a Cargo.lock change one dispatch
+# on main warms the cache that the release gate then restores.
+#
+# Reopen (back to pull_request, path-filtered to apps/desktop-tauri/**) when a second
+# person merges to main, or when a release gate catches something the pre-push missed.
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - "apps/desktop-tauri/**"
-      - "packages/**"
-      - "bun.lock"
-      - ".github/workflows/ci-desktop-tauri.yml"
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   verify:
-    name: Test, lint & check bindings
+    name: Verify (TypeScript + Rust)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -44,16 +51,24 @@ jobs:
         with:
           components: clippy, rustfmt
 
-      - name: Cache Rust build
+      - name: Cache Rust build (restore; saved from main only)
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: apps/desktop-tauri/src-tauri -> target
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Cache bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # `build` type-checks, then builds the renderer into dist/ — which the Rust
-      # build embeds, so it has to exist first.
+      # The renderer: type-check, Vite build, Vitest. The Rust build embeds dist/.
       - name: Build renderer
         working-directory: apps/desktop-tauri
         run: bun run build
@@ -62,22 +77,8 @@ jobs:
         working-directory: apps/desktop-tauri
         run: bun run test
 
-      - name: Check Rust formatting
-        working-directory: apps/desktop-tauri/src-tauri
-        run: cargo fmt --check
-
-      - name: Clippy
-        working-directory: apps/desktop-tauri/src-tauri
-        run: cargo clippy --all-targets -- -D warnings
-
-      # The Rust suite includes `export_bindings`, which rewrites src/bindings.ts.
-      - name: Test Rust core
+      # fmt, clippy -D warnings, cargo test, and the stale-bindings check — the same
+      # script the pre-push and the release gate run.
+      - name: Verify Rust core
         working-directory: apps/desktop-tauri
-        run: bun run test:rust
-
-      - name: Check the committed bindings are current
-        run: |
-          if ! git diff --exit-code -- apps/desktop-tauri/src/bindings.ts; then
-            echo "::error::src/bindings.ts is stale. Run 'bun run bindings' in apps/desktop-tauri and commit the result."
-            exit 1
-          fi
+        run: bun run verify:rust

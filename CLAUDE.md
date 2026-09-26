@@ -73,17 +73,20 @@ here):
   make Node `require` a `.ts` file at runtime. Keeping them in `devDependencies` bundles them into
   `out/` and keeps the source out of the shipped asar. Full reasoning in
   `docs/adr/0001-desktop-app.md`. (Electron only — the Tauri renderer is a plain Vite bundle.)
-- **Electron's binary needs an explicit install step (sharp gotcha):** `electron@44.x` ships with no
-  `postinstall` of its own — installing the npm package only gets the JS wrapper, not the ~150-200MB
-  native binary, so `node_modules/electron/path.txt` is missing and `electron-vite dev` fails with
-  `Error: Electron uninstall`. Bun also does not run a workspace package's own `postinstall`
-  automatically (only the root project's). Both gaps are closed together: the root `postinstall`
-  script runs `turbo run postinstall -F desktop-electron` (added/removed by `customize.ts` alongside
-  `dev:desktop-electron`/`test:desktop-electron` — see `DESKTOP_APPS`), which calls
-  `apps/desktop-electron`'s own
-  `postinstall`: `install-electron && electron-builder install-app-deps` — the first command fetches
-  the binary, the second rebuilds native modules for the local arch. Keep both scripts together if
-  either changes.
+- **No lifecycle scripts — `bun install` never downloads or compiles (sharp gotcha):** there is no
+  `postinstall` anywhere, by the hub rule in `desktop/native-dependencies.md`. `electron@44.x` ships
+  no `postinstall` of its own, so the ~200 MB binary is fetched explicitly by
+  `apps/desktop-electron`'s `electron:install` (idempotent), which `dev`, `start`, `package:*` and
+  the release workflow call first. Without it, `electron-vite dev` fails with
+  `Error: Electron uninstall`. Tests, type-check and `build` need no binary. The app has no native
+  modules (`node:sqlite`); adding one means an explicit `rebuild:native` script, never a
+  `postinstall` (`docs/adr/0003-desktop-ci-pipelines.md`).
+- **`bun run verify` is the one definition of green:** lint, format check, package builds,
+  type-check, tests. The Lefthook pre-push runs it (plus the Tauri app's `verify:rust` when a push
+  touches its Rust core or the i18n catalogs), and every desktop release workflow runs the same
+  commands in a Linux `verify` job that the macOS job `needs:`. No workflow runs on pull requests;
+  they are all `workflow_dispatch`, for rehearsing a risky change in a clean environment.
+  Change the checks in `verify`, never in one caller.
 - **Tauri bindings are generated and committed:** `apps/desktop-tauri/src/bindings.ts` comes from
   the Rust command signatures (tauri-specta). After changing a command, run `bun run bindings` in
   that app and commit the result; `ci-desktop-tauri.yml` fails on a stale file. The tauri-specta

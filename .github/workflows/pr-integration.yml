@@ -1,5 +1,16 @@
 name: PR Integration Tests
 
+# Tier: on demand only (docs/adr/0003-desktop-ci-pipelines.md; hub:
+# monorepos/release-gated-verification.md). Not triggered by pull requests: with a single
+# owner and no branch protection a PR check is advisory — it bills every push and verifies
+# nothing the Lefthook pre-push (`bun run verify`: lint, format, package builds, types,
+# tests) has not already verified for free. Release workflows run the same `verify` on the
+# tagged SHA before publishing. Dispatch this from the Actions tab after a risky change
+# (lockfile, workflows, scripts/, build config) to rehearse it in a clean environment.
+#
+# Reopen (back to pull_request) when a second person merges to main, or branch protection
+# makes the check required — then it is a guarantee instead of a notification.
+
 # API integration tests run against a REAL Neon branch, so they need a secret.
 # This job is opt-in: it stays skipped until you set the repository variable
 # RUN_INTEGRATION_TESTS=true and add the TEST_DATABASE_URL secret (see below).
@@ -12,19 +23,10 @@ name: PR Integration Tests
 #   3. Repo → Settings → Variables → add RUN_INTEGRATION_TESTS = true.
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - "apps/server-hono/**"
-      - "packages/domain/**"
-      - "packages/application/**"
-      - "packages/infra-db/**"
-      - "packages/infra-auth/**"
-      - ".github/workflows/pr-integration.yml"
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
