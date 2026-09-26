@@ -335,6 +335,11 @@ describe("customizer produces a clean project per pattern", () => {
         }
       }
 
+      // 12g. Template-maintenance skills go with the customizer they describe.
+      for (const skill of ["customize-template", "extending-the-template"]) {
+        expect(existsSync(path.join(dir, ".claude/skills", skill)), `${skill} skill`).toBe(false);
+      }
+
       // 12a. No lifecycle scripts: `bun install` must not download or compile
       // anything (hub: desktop/native-dependencies.md).
       expect(rootPkg.scripts?.postinstall, "root postinstall").toBeUndefined();
