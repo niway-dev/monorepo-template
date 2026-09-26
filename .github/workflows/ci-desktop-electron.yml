@@ -1,4 +1,4 @@
-name: Desktop CI
+name: Desktop CI (Electron)
 
 # The desktop app's own checks, path-filtered so they only run when the app or a
 # shared package changes. Lint and formatting for the whole repo live in the
@@ -9,10 +9,10 @@ on:
     branches:
       - main
     paths:
-      - "apps/desktop/**"
+      - "apps/desktop-electron/**"
       - "packages/**"
       - "bun.lock"
-      - ".github/workflows/ci-desktop.yml"
+      - ".github/workflows/ci-desktop-electron.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
@@ -45,12 +45,12 @@ jobs:
       # The workspace packages this app uses (domain, application, i18n, tokens)
       # resolve from source, so no package build step is needed first.
       - name: Test
-        working-directory: apps/desktop
+        working-directory: apps/desktop-electron
         run: bun run test
 
       # `build` runs the type-check first, then electron-vite. It is the real
       # check that the workspace packages bundle correctly into the main process
       # — a type-check alone would not catch that.
       - name: Build
-        working-directory: apps/desktop
+        working-directory: apps/desktop-electron
         run: bun run build

@@ -10,6 +10,9 @@
     "**/.astro/**",
     "**/out/**",
     "**/.wrangler/**",
+    "**/src-tauri/target/**",
+    "**/src-tauri/gen/**",
+    "apps/desktop-tauri/src/bindings.ts",
     "**/.source/**",
     "**/convex/_generated/**"
   ]

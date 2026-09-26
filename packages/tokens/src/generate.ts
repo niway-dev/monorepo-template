@@ -36,7 +36,7 @@ export function generateCss(prefix = "mt-"): string {
  *   tokens.css          `--mt-*`, for web-ui — shadcn declares its own
  *                       `--background`/`--primary`, so ours must not collide.
  *   tokens.desktop.css  unprefixed, for consumers with no shadcn in the page
- *                       (apps/desktop). Shorter to read and to write by hand.
+ *                       (apps/desktop-electron, apps/desktop-tauri). Shorter to read and to write by hand.
  */
 export const OUTPUTS = [
   { file: "tokens.css", prefix: "mt-" },

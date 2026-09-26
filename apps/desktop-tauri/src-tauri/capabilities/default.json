@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "What the main window may do. The app's own commands are always callable; nothing else is granted beyond the core defaults (events, window, app metadata). The updater runs from Rust, so the webview needs no updater permission.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

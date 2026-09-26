@@ -1,0 +1,44 @@
+{
+  "name": "desktop-tauri",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first Tauri app: the desktop client of the monorepo template",
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "dev:renderer": "vite",
+    "build": "tsc --noEmit && vite build",
+    "bundle": "tauri build",
+    "check-types": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "bindings": "cargo test --manifest-path src-tauri/Cargo.toml export_bindings",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.12.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@monorepo-template/application": "workspace:*",
+    "@monorepo-template/domain": "workspace:*",
+    "@monorepo-template/i18n": "workspace:*",
+    "@monorepo-template/tokens": "workspace:*",
+    "@tauri-apps/cli": "2.12.0",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "catalog:",
+    "jsdom": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

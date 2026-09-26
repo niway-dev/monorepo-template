@@ -1,4 +1,4 @@
-# desktop
+# desktop-electron
 
 A local-first Electron app: everything it stores lives on the device, and it makes
 no network calls. It is the template's clearest demonstration of the dependency
@@ -10,7 +10,7 @@ CSS Modules, packaged by electron-builder 26.
 ## Commands
 
 ```bash
-bun run dev            # start with HMR (from the repo root: bun run dev:desktop)
+bun run dev            # start with HMR (from the repo root: bun run dev:desktop-electron)
 bun run test           # unit tests (main process) + component tests (renderer)
 bun run check-types    # tsc for the node and web projects
 bun run build          # type-check, then electron-vite build -> out/
@@ -101,15 +101,15 @@ it namespaces the app's data directory and the Windows taskbar grouping.
 why `scripts/build-mac-local.sh` sources them first. With the `APPLE_API_*` vars
 set the build is notarized and stapled; without them it is signed only.
 
-**In CI:** `.github/workflows/release-desktop.yml` builds, signs and notarizes on a
-`desktop-v*` tag and attaches the DMGs to a draft GitHub Release. It needs the
+**In CI:** `.github/workflows/release-desktop-electron.yml` builds, signs and notarizes on a
+`desktop-electron-v*` tag and attaches the DMGs to a draft GitHub Release. It needs the
 signing secrets in a `production` GitHub Environment — the workflow header lists
 them. Publishing an update feed is off until you set `PUBLISH_UPDATES=true` and
 add the bucket credentials.
 
 Windows and Linux targets are declared in `electron-builder.yml` but no workflow
 builds them; a matrix job is sketched, commented out, at the bottom of
-`release-desktop.yml`. Their signing story is not validated here.
+`release-desktop-electron.yml`. Their signing story is not validated here.
 
 ## Adding authentication
 
