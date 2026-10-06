@@ -127,6 +127,8 @@ For CI, `ciAppDir` is what gets deployed. A pattern whose app _is_ the backend s
 
 **Convex:** If not using Convex, `customize` removes `scripts/generate-convex-jwt-keys.ts` and the `generate:convex-jwt-keys` script.
 
+**Convex file names:** Files and directories under `convex/` must be camelCase (`[A-Za-z0-9_.]` only); hyphens break the deploy push. `packages/*/tests/modulePaths.test.ts` guards this.
+
 ---
 
 ## Post-Script Manual Steps

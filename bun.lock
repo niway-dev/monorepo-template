@@ -431,6 +431,7 @@
       "devDependencies": {
         "@monorepo-template/config": "workspace:*",
         "typescript": "catalog:",
+        "vitest": "catalog:",
       },
     },
     "packages/convex-auth-api": {
@@ -441,6 +442,9 @@
         "@convex-dev/better-auth": "0.12.5",
         "better-auth": "1.6.23",
         "convex": "catalog:",
+      },
+      "devDependencies": {
+        "vitest": "catalog:",
       },
     },
     "packages/domain": {

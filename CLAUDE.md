@@ -95,6 +95,11 @@ here):
   `use-intl`) can resolve a different React copy than the app. Both desktop apps dedupe
   `react`/`react-dom` in their Vite and Vitest configs; without it the window renders blank with
   `dispatcher.useContext` on null.
+- **Convex file names are camelCase only (sharp gotcha):** every file and directory under `convex/`
+  (except `_generated/`) is bundled and must match `[A-Za-z0-9_.]`. A hyphen (`employee-events.ts`,
+  `_lib/my-helper.ts`) passes tsc, lint, and Vitest but fails the first `convex dev` push with
+  `InvalidConfig: Invalid module path`. `packages/*/tests/modulePaths.test.ts` enforces it in
+  `bun run verify`. Reasoning in the hub: [convex/](https://github.com/csdev19/general-knowledge/blob/main/convex/README.md).
 - **web-ui needs `dist/`:** `@monorepo-template/web-ui` exports point to built files, and `dist/` is
   NOT committed — a fresh clone has none. Run `bun run build --filter='@monorepo-template/*'` before
   `bun run check-types`, or the apps that import web-ui fail with "Cannot find module". CI already
