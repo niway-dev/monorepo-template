@@ -5,12 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "convex dev",
-    "dev:setup": "convex dev --configure --until-success"
+    "dev:setup": "convex dev --configure --until-success",
+    "test": "vitest run"
   },
   "dependencies": {
     "@better-auth/expo": "1.6.23",
     "@convex-dev/better-auth": "0.12.5",
     "better-auth": "1.6.23",
     "convex": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
   }
 }
