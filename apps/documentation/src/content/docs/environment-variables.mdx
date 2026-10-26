@@ -1,156 +1,111 @@
 ---
 title: Environment Variables
-description: How environment variables are loaded across apps and a proposal for encrypted env management with dotenvx
+description: How every app gets its local env file from one command, which variables each pattern needs, and how to plug in a secrets provider
 ---
 
 # Environment Variables
 
-## How Env Vars Are Loaded
+**Local values come from one command: `bun run env:pull`.** It reads a secrets provider
+(Infisical by default), writes each kept app's `.env`, and is the only moment local
+development talks to that provider. `bun dev` and the `db:*` scripts read the files it
+wrote, so a provider outage blocks a refresh, never a working session.
 
-| App/Package                       | Method                                      | Source File                                | When                                   |
-| --------------------------------- | ------------------------------------------- | ------------------------------------------ | -------------------------------------- |
-| **Server**                        | `import { env } from "cloudflare:workers"`  | `.dev.vars` (dev), wrangler secrets (prod) | Runtime                                |
-| **Web**                           | Vite `import.meta.env` + Wrangler vars      | `.env`                                     | Build-time (client) / Runtime (server) |
-| **Mobile**                        | Expo `EXPO_PUBLIC_` prefix + Zod validation | `.env`                                     | Build-time                             |
-| **Infra-DB** (drizzle migrations) | `dotenv` loading `../../.env` (root)        | Root `.env`                                | Migration-time                         |
+Decision record: [ADR 0004](https://github.com/niway-dev/monorepo-template/blob/main/docs/adr/0004-env-pull-behind-one-script.md).
+Reusable conventions: the hub's [Infisical playbook](https://github.com/csdev19/general-knowledge/blob/main/infra/infisical-secrets.md)
+and [environment inventory](https://github.com/csdev19/general-knowledge/blob/main/infra/environment-inventory.md).
 
----
+## Get your environment
 
-## Variables by Context
+1. Install the provider's CLI and log in. Infisical on macOS:
+   `brew install infisical/get-cli/infisical`, then `infisical login`.
+2. Link the repo once: `infisical init` at the repo root, then commit `.infisical.json`.
+3. `bun run env:pull` (another environment: `bun run env:pull -- --env staging`).
+4. `bun run dev`.
 
-| Variable              | Server | Web | Mobile | Infra-DB | Sensitive? |
-| --------------------- | ------ | --- | ------ | -------- | ---------- |
-| `DATABASE_URL`        | Yes    | Yes | -      | Yes      | **Yes**    |
-| `DATABASE_URL_DIRECT` | Yes    | Yes | -      | -        | **Yes**    |
-| `BETTER_AUTH_SECRET`  | Yes    | Yes | -      | -        | **Yes**    |
-| `BETTER_AUTH_URL`     | Yes    | -   | -      | -        | No         |
-| `CORS_ORIGIN`         | Yes    | -   | -      | -        | No         |
-| `VITE_SERVER_URL`     | -      | Yes | -      | -        | No         |
-| `EXPO_PUBLIC_API_URL` | -      | -   | Yes    | -        | No         |
-| `ENVIRONMENT`         | -      | Yes | -      | -        | No         |
+Never edit the generated files by hand; change the value in the provider and pull again.
+Without a provider, copy each kept app's `.env.example` to `.env` and fill it in.
 
----
+The pull is **all or nothing**. Every file is fetched and checked first; existing files are
+replaced only if every target succeeds. A missing key fails the run with the key's name.
+Files are written owner-only (`0600`).
 
-## Current Pain Points
+## How it is built
 
-1. **Multiple .env file locations** -- root `.env`, `apps/server/.dev.vars`, `apps/web/.env`, `apps/mobile/.env`
-2. **Manual sync** -- changing `DATABASE_URL` requires updating 3+ files
-3. **No encryption** -- secrets stored in plaintext
-4. **Wrangler uses `.dev.vars`** not `.env` -- different format/location from everything else
-5. **Drizzle loads from root** -- `config({ path: "../../.env" })` is fragile
-6. **GitHub Actions works fine** -- secrets/vars managed in GitHub, no issue there
+| Piece              | File                                 | Change it when                   |
+| ------------------ | ------------------------------------ | -------------------------------- |
+| Command            | `scripts/env/pull.ts`                | rarely; it only orchestrates     |
+| What is written    | `scripts/env/config.ts`              | an app gains or loses a variable |
+| Provider contract  | `scripts/env/providers/types.ts`     | never, ideally                   |
+| Infisical provider | `scripts/env/providers/infisical.ts` | a folder is added in Infisical   |
+| Provider registry  | `scripts/env/providers/index.ts`     | a provider is added              |
 
----
+A **target** is one file: its path, the **consumer** that may read the values, the keys it
+requires, and an optional filter. The consumer is provider-neutral: Infisical reads it as a
+tag; another provider can map it to a path, a project or a vault item.
 
-## Proposal: dotenvx for Encrypted Env Management
+Targets whose app directory does not exist are skipped, so `bun run customize` needs no
+change here when it deletes apps.
 
-[dotenvx](https://dotenvx.com) is the next-generation replacement for dotenv, by the same author. Free and open source (BSD-3).
+### Adding a provider
 
-### Key Features
+1. Write `scripts/env/providers/<name>.ts` exporting a factory that returns an `EnvProvider`:
+   `check()` fails fast with the fix (CLI missing, not logged in, not linked), and
+   `fetch({ environment, consumer })` returns that consumer's values. Never print a value.
+2. Register it in `scripts/env/providers/index.ts`.
+3. Use it once with `ENV_PROVIDER=<name> bun run env:pull`, or make it the default in
+   `scripts/env/config.ts`.
 
-- **Encryption** -- AES-256 + secp256k1. Values encrypted inline in `.env` files
-- **Safe to commit** -- encrypted `.env` files can live in git
-- **Per-environment keys** -- `.env.production` gets its own key pair
-- **Asymmetric crypto** -- public key in `.env` (anyone can add secrets), private key in `.env.keys` (only holders can decrypt)
-- **Language-agnostic CLI** -- wraps any command: `dotenvx run -- bun run dev`
-- **Monorepo support** -- `-f` flag to specify which `.env` file
+## Infisical layout
 
-### How Encryption Works
+Environments: `dev` (and `staging` / `prod` when CI reads from Infisical too).
+Folders group values by what a leak enables; tags name the consumer that needs them.
 
-```bash
-# Before encryption
-DATABASE_URL=postgresql://user:pass@host/db
+| Folder      | What a leak or edit enables                    |
+| ----------- | ---------------------------------------------- |
+| `/public`   | Non-credential configuration: URLs and origins |
+| `/database` | Read and write access to the database          |
+| `/auth`     | Forging sessions; signing tokens               |
 
-# After `dotenvx encrypt`
-DOTENV_PUBLIC_KEY="03f98bf6e00bce..."
-DATABASE_URL="encrypted:BCV9qZmblsUm77..."
-```
+| Tag                        | Consumer                                 |
+| -------------------------- | ---------------------------------------- |
+| `server-runtime`           | `apps/server-hono`, `apps/server-elysia` |
+| `web-runtime`              | `apps/web-hono`, `apps/web-elysia`       |
+| `fullstack-runtime`        | `apps/fullstack-fn-only`                 |
+| `fullstack-convex-runtime` | `apps/fullstack-fn-and-convex`           |
+| `mobile-runtime`           | `apps/mobile`                            |
+| `mobile-convex-runtime`    | `apps/mobile-convex`                     |
 
-A separate `.env.keys` file holds private keys (never committed):
+A key needed by several consumers is stored once and carries several tags. An untagged key
+is silently absent from every file, which is why the pull checks required keys by name.
+The Infisical CLI cannot export folders recursively, so the provider reads the folders
+listed in `FOLDERS`; a new folder must be added there.
 
-```bash
-DOTENV_PRIVATE_KEY="a1b2c3d4..."
-DOTENV_PRIVATE_KEY_PRODUCTION="f6e5d4c3..."
-```
+## Variables by pattern
 
----
+| Key                                                     | Folder      | Tags                                                              | Required by                                                                                          |
+| ------------------------------------------------------- | ----------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                          | `/database` | `server-runtime`, `fullstack-runtime`, `fullstack-convex-runtime` | API and fullstack apps; also the `db:*` scripts, which read the API's `.env`                         |
+| `BETTER_AUTH_SECRET`                                    | `/auth`     | `server-runtime`, `fullstack-runtime`, `fullstack-convex-runtime` | API and fullstack apps                                                                               |
+| `CORS_ORIGIN`                                           | `/public`   | `server-runtime`                                                  | API: Better Auth `trustedOrigins` (the CSRF check on sign-in), not HTTP CORS. Include the web origin |
+| `BETTER_AUTH_URL`                                       | `/public`   | `fullstack-runtime`, `fullstack-convex-runtime`                   | Fullstack apps. On the API it is optional and, when set (OAuth), must be the **web** origin          |
+| `VITE_SERVER_URL`                                       | `/public`   | `web-runtime`                                                     | Client-server web apps: the API they proxy to                                                        |
+| `VITE_CONVEX_URL`                                       | `/public`   | `fullstack-convex-runtime`                                        | Fullstack + Convex                                                                                   |
+| `JWT_PRIVATE_JWK`, `JWT_KID`                            | `/auth`     | `fullstack-convex-runtime`                                        | Fullstack + Convex (`bun run generate:convex-jwt-keys`)                                              |
+| `EXPO_PUBLIC_API_URL`                                   | `/public`   | `mobile-runtime`                                                  | Mobile (inlined into the bundle: never a credential)                                                 |
+| `EXPO_PUBLIC_CONVEX_URL`, `EXPO_PUBLIC_CONVEX_SITE_URL` | `/public`   | `mobile-convex-runtime`                                           | Mobile + Convex                                                                                      |
 
-## Options
+The client-server **web** apps need only `VITE_SERVER_URL`: they proxy every auth and data
+request to the API and never run Better Auth or open the database.
+`DATABASE_URL_DIRECT` appears in the API's `.env.example` but no code reads it.
 
-### Option A: dotenvx for Everything EXCEPT Server Dev (Recommended)
+## Where each app reads its file
 
-Use dotenvx to manage `apps/web/.env`, `apps/mobile/.env`, and root `.env`. Keep `.dev.vars` for server development as-is.
+| App            | Reads                                                                         | When                                    |
+| -------------- | ----------------------------------------------------------------------------- | --------------------------------------- |
+| API Workers    | `.env`, auto-loaded by Wrangler (never a `vars` block in `wrangler.jsonc`)    | `wrangler dev`, runtime                 |
+| Web apps       | `.env`: Vite inlines `VITE_*` into the client; the Worker side reads the rest | build and runtime                       |
+| Mobile         | `.env`: Expo inlines `EXPO_PUBLIC_*`                                          | bundle time: restart Metro after a pull |
+| `db:*` scripts | the API's `.env`, through `bun --env-file`                                    | each command                            |
 
-**Pros**: Least disruption, wrangler works natively
-**Cons**: Server secrets still unencrypted locally in `.dev.vars`
-
-### Option B: Generate `.dev.vars` from dotenvx-managed `.env`
-
-Keep `apps/server/.env` managed by dotenvx. Script decrypts and writes to `.dev.vars`:
-
-```json
-{
-  "scripts": {
-    "dev:sync": "dotenvx run -f .env -- sh -c 'printenv | grep -E \"^(DATABASE_URL|CORS_ORIGIN|BETTER_AUTH)\" > .dev.vars'",
-    "dev": "bun run dev:sync && wrangler dev --port 3000"
-  }
-}
-```
-
-### Option C: Use `wrangler dev --env-file .env` (Wrangler v4+)
-
-Wrangler supports `--env-file` flag or `env_file` in `wrangler.jsonc`:
-
-```jsonc
-{
-  "env_file": ".env"
-}
-```
-
-### Option D: Consolidate to Root `.env` + dotenvx
-
-Single encrypted `.env` at root. Each app loads from there:
-
-```json
-{
-  "dev": "dotenvx run -f ../../.env -- wrangler dev --port 3000"
-}
-```
-
----
-
-## Recommended Approach
-
-**Start with Option A** because:
-
-1. Zero risk to existing wrangler workflow
-2. Encrypts web, mobile, and root env files immediately
-3. `.dev.vars` already works for local server dev
-4. Can migrate to Option B or C later
-
-### Implementation Steps
-
-1. Install `@dotenvx/dotenvx` as root devDependency
-2. Encrypt existing `.env` files with `dotenvx encrypt`
-3. Update `.gitignore` to include `.env.keys` and `.dev.vars`
-4. Update `drizzle.config.ts` to not depend on root `.env` with relative path
-5. Update `package.json` scripts to use `dotenvx run`
-6. Store `DOTENV_PRIVATE_KEY` in 1Password for team sharing
-7. Optionally add `dotenvx ext precommit` as a `pre-commit` job in `lefthook.yml` to prevent committing unencrypted secrets
-
-### Onboarding a New Developer
-
-1. Clone repo (gets encrypted `.env` files)
-2. Receive `.env.keys` from team lead (via 1Password, etc.)
-3. Place `.env.keys` at repo root
-4. Run `bun run dev` -- everything decrypts automatically
-
-### CI/CD (GitHub Actions)
-
-```yaml
-- run: bunx dotenvx run -f apps/server/.env -- wrangler deploy
-  env:
-    DOTENV_PRIVATE_KEY: ${{ secrets.DOTENV_PRIVATE_KEY }}
-```
-
-Or keep using current GitHub secrets approach (no change needed).
+Production values are not pulled: CI injects them as Wrangler secrets (see the deploy workflow).
+Convex packages keep their own `.env.local`, written by `convex dev`.

@@ -62,6 +62,10 @@ here):
 - **Skill Configuration:** Skills in `.claude/skills/` may have a **Configuration** table with paths
   (e.g. `DOCS_BASE`). If a skill's configured path no longer matches the actual project path, update
   the skill's Configuration table directly so future sessions don't re-discover it.
+- **Env values come from `bun run env:pull`** (`scripts/env/`, ADR 0004): one provider-agnostic
+  script writes every app's `.env`; Infisical is the default provider. Never hand-edit those files
+  and never add a second path that fetches from the provider. A new variable goes in the app's
+  schema, its `.env.example`, and `scripts/env/config.ts` when required.
 - **Env / Wrangler (sharp gotcha):** ALWAYS use `.env` (and `.dev.vars` for local Worker secrets).
   NEVER add a `vars` / `[vars]` / `[env.*]` block to `wrangler.jsonc` — Wrangler auto-loads `.env`,
   so a `vars` block drifts from the single source of truth. Wrangler is pinned in the root catalog;
