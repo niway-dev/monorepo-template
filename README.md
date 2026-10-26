@@ -79,19 +79,19 @@ A desktop app is **also available as an add-on to any other pattern** (`customiz
 
 2. Set up environment variables:
 
-   **With dotenvx (recommended):** get the `.env.keys` file from your team lead and place it at the repo root. The encrypted `.env` files are already committed — dotenvx decrypts them at runtime.
+   ```bash
+   infisical login     # once per machine (brew install infisical/get-cli/infisical)
+   infisical init      # once per clone: links .infisical.json to your project; commit it
+   bun run env:pull    # writes every kept app's .env from the provider
+   ```
 
-   **Manual setup:** copy the `.env.example` of each kept app and fill it in. Which vars you need depends on the pattern:
+   `env:pull` is provider-agnostic: Infisical is the default, and another provider is one file in
+   `scripts/env/providers/`. Without a provider, copy each kept app's `.env.example` to `.env`.
+   Which keys each app needs, and how to tag them, is on the docs app's
+   [Environment Variables](apps/documentation/src/content/docs/environment-variables.mdx) page.
 
-   | Variable              | Where                   | Description                                   |
-   | --------------------- | ----------------------- | --------------------------------------------- |
-   | `DATABASE_URL`        | backend / fullstack app | Neon PostgreSQL connection string             |
-   | `DATABASE_URL_DIRECT` | backend app             | Direct (non-pooled) connection for migrations |
-   | `BETTER_AUTH_SECRET`  | backend / fullstack app | `openssl rand -base64 32`                     |
-   | `CORS_ORIGIN`         | backend app             | Web app origin (mobile CORS)                  |
-   | `VITE_SERVER_URL`     | web app (client-server) | Backend URL the web proxies to                |
-
-   > The client-server **web** apps only need `VITE_SERVER_URL` — no DB URL or auth secret, since they proxy everything to the backend.
+   > The client-server **web** apps only need `VITE_SERVER_URL`: they proxy every auth and data
+   > request to the backend, so they never hold a database URL or an auth secret.
 
 3. Push the database schema and start dev:
 

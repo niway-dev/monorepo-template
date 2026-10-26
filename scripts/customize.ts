@@ -641,7 +641,7 @@ Architecture, TypeScript, Bun, and Turborepo.
 
 \`\`\`bash
 bun install
-# copy each app's .env.example -> .env (or .dev.vars) and fill it in${
+bun run env:pull   # or copy each app's .env.example -> .env and fill it in${
       hasDatabase ? "\nbun run db:push" : ""
     }
 bun run dev
