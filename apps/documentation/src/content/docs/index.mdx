@@ -35,9 +35,9 @@ git clone <repo-url>
 # Install dependencies
 bun install
 
-# Set up environment variables
-cp .env.example .env
-cp .dev.vars.example .dev.vars
+# Set up environment variables (one .env per app, from the secrets provider)
+infisical login
+bun run env:pull
 
 # Run database migrations
 bun run db:push

@@ -13,8 +13,8 @@
  * All or nothing: every target is fetched and checked first; files are replaced only if
  * all succeed. Files are owner-only (0600). Never prints a value.
  */
-import { existsSync, renameSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { envConfig, type EnvTarget } from "./config";
 import { providers } from "./providers";
@@ -87,6 +87,19 @@ for (const { target, content } of staged) {
   writeFileSync(tmp, content, { mode: 0o600 });
   renameSync(tmp, path);
 }
+
+// One env file per app, always `.env`. A leftover `.dev.vars` would silently override it
+// (Wrangler and the Cloudflare Vite plugin prefer it), so remove any next to a target.
+for (const { target } of staged) {
+  const stale = join(ROOT, dirname(target.file), ".dev.vars");
+  if (existsSync(stale)) {
+    rmSync(stale);
+    console.log(
+      `removed ${relative(ROOT, stale)}: this repo uses .env only (a .dev.vars would override it)`,
+    );
+  }
+}
+
 console.log(
   `\nWrote ${staged.length} env files (${environment}). Do not edit them by hand; re-run this command.`,
 );
