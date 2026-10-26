@@ -71,12 +71,13 @@
     "dev:server-elysia": "turbo run dev -F server-elysia",
     "dev:web-hono": "turbo run dev -F web-hono",
     "dev:server-hono": "turbo run dev -F server-hono",
+    "env:pull": "bun scripts/env/pull.ts",
     "customize": "bun scripts/customize.ts",
     "rename": "bun scripts/rename.ts",
-    "db:push": "dotenvx run -f apps/server-hono/.env -- turbo run db:push -F @monorepo-template/infra-db",
-    "db:studio": "dotenvx run -f apps/server-hono/.env -- turbo run db:studio -F @monorepo-template/infra-db",
-    "db:generate": "dotenvx run -f apps/server-hono/.env -- turbo run db:generate -F @monorepo-template/infra-db",
-    "db:migrate": "dotenvx run -f apps/server-hono/.env -- turbo run db:migrate -F @monorepo-template/infra-db",
+    "db:push": "bun --env-file=apps/server-hono/.env run turbo run db:push -F @monorepo-template/infra-db",
+    "db:studio": "bun --env-file=apps/server-hono/.env run turbo run db:studio -F @monorepo-template/infra-db",
+    "db:generate": "bun --env-file=apps/server-hono/.env run turbo run db:generate -F @monorepo-template/infra-db",
+    "db:migrate": "bun --env-file=apps/server-hono/.env run turbo run db:migrate -F @monorepo-template/infra-db",
     "generate:convex-jwt-keys": "bun scripts/generate-convex-jwt-keys.ts"
   },
   "dependencies": {

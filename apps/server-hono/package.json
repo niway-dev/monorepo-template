@@ -9,7 +9,7 @@
     "dev": "wrangler dev --port 3000 --inspector-port 9229",
     "deploy": "wrangler deploy",
     "cf:gen-types": "wrangler types --env-interface CloudflareBindings",
-    "test:integration": "dotenvx run -f .env.test -- vitest run --config vitest.integration.config.ts",
+    "test:integration": "bun --env-file=.env.test run vitest run --config vitest.integration.config.ts",
     "test:integration:ci": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
