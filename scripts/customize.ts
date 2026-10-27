@@ -1620,6 +1620,11 @@ async function main() {
   removeFile(".claude/commands/customize-template.md");
   // Maintaining the template means editing customize.ts, which is deleted below.
   removeDir(".claude/skills/extending-the-template");
+  // The verify skill drives the Expo app; without mobile it has nothing to drive.
+  if (!keepMobile) {
+    removeDir(".claude/skills/verify");
+    console.log("  Removed .claude/skills/verify/ (mobile dropped)");
+  }
   console.log("  Removed .claude/skills/customize-template/");
   console.log("  Removed .claude/skills/extending-the-template/");
   console.log("  Removed .claude/commands/customize-template.md");
