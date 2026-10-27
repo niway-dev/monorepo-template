@@ -67,6 +67,8 @@ taps and forms, and the whole auth flow becomes testable. Keep each flow next to
   to be honored: the `sign-up` run still showed the sign-in screen. Check every route screenshot.
 - `expo start --ios` fails when Simulator.app is missing from Xcode; the script installs Expo Go
   itself.
+- Leaving generated files behind: a run creates `apps/mobile/.expo/` and `expo-env.d.ts`, which
+  fail the pre-push `oxfmt --check .`. Delete them before pushing.
 - Committing `.verify/`: it is gitignored; link artifacts from the PR instead.
 
 ## Before reporting
